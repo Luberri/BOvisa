@@ -1,13 +1,14 @@
-package com.example.gestion_rh;
+package com.example.visa;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GestionRhApplication {
+public class BoVisa {
 
 	public static void main(String[] args) {
-		SpringApplication.run(GestionRhApplication.class, args);
+		SpringApplication.run(BoVisa
+		.class, args);
 	}
 
 }

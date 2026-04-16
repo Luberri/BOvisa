@@ -1,0 +1,6 @@
+
+	jQuery(document).ready(function(){
+		jQuery('body').on('click', '.btn-collapse', function(){
+			jQuery('#site-navigation').toggleClass('in');
+		});
+	});

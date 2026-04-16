@@ -1,0 +1,24 @@
+misy visa transformable 
+non transformable
+
+
+tonga Ivato -> visa transformable -> afaka manao demande (transformation) visa 'travailleur,missionaire,investiseur,...'
+contraintes : visa transformable tokony anana info aty am interieur(fanjakana) ; 
+---------------------------------------------------------------
+sprint 1-nouvelle demande de transformation visa transformable
+---------------------------------------------------------------
+ex : visa transformable 3mois , alohan ny date farany mangataka transformation visa any am Ministere,
+'fiche de renseignement' , 
+infos : inna noatao anaty ecran de saisie (type etudiant et travailelur SEULEMENT)
+
+ecran saisie : nouveau titre , duplicata carte resident et transf de visa
+
+backoffice : spring
+FO:framework 
+
+voir https://www.madagascar-services.com/blog/fr/2017/03/07/carte-de-resident-visa-biometrique-a-madagascar/
+atao case a coche coche
+
+pour etat civil voir file:///G:/S6/Visado-de-larga-duracio%CC%81n-Formulario.pdf
+
+form de saisie travailleur et inverstisseur

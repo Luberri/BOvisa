@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire demande visa long sejour</title>
+    <style>
+        :root {
+            --bg: #f5f2ea;
+            --text: #1d1d1b;
+            --muted: #5e5a53;
+            --line: #d3cdc2;
+            --card: #fffdf8;
+            --accent: #8a4b08;
+            --accent-strong: #703d06;
+            --error: #b91c1c;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            background: radial-gradient(circle at top right, #fff6df, var(--bg));
+            font-family: Georgia, "Times New Roman", serif;
+        }
+
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 32px;
+            line-height: 1.2;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            animation: rise 0.4s ease;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            margin: 0 0 10px;
+            font-size: 21px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 7px;
+        }
+
+        h3 {
+            margin: 10px 0 6px;
+            font-size: 16px;
+            text-decoration: underline;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #403a31;
+        }
+
+        input, select, textarea {
+            border: 1px solid #bcb5a9;
+            background: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+            padding: 10px;
+            font-family: inherit;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .checks {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            font-size: 14px;
+        }
+
+        .error {
+            color: var(--error);
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+        .global-errors {
+            border: 1px solid #f0b2b2;
+            background: #fff0f0;
+            color: #7a1111;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 14px;
+            font-size: 13px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-strong);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #ece7dc;
+            color: #3a362f;
+        }
+
+        .category-block {
+            display: none;
+        }
+
+        .category-block.active {
+            display: block;
+        }
+
+        .radios {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 10px;
+        }
+
+        .radio-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="head">
+        <div>
+            <h1 th:text="${editMode} ? 'Modifier une demande' : 'Nouvelle demande'">Nouvelle demande</h1>
+            <div class="muted">Type de demande traite: NOUVEAU_TITRE</div>
+        </div>
+        <a class="btn btn-secondary" th:href="@{/demandes}">Retour liste</a>
+    </div>
+
+    <form th:action="${editMode} ? @{/demandes/{id}(id=${demandeId})} : @{/demandes}" th:object="${form}" method="post">
+
+        <div class="global-errors" th:if="${#fields.hasGlobalErrors()}">
+            <div th:each="err : ${#fields.globalErrors()}" th:text="${err}"></div>
+        </div>
+
+        <div class="card">
+            <h2>Pieces justificatives</h2>
+
+            <div class="field">
+                <label>Categorie immigrant</label>
+                <div class="radios">
+                    <label class="radio-item" th:each="cat : ${categories}">
+                        <input type="radio" th:field="*{categorieDemande}" th:value="${cat}">
+                        <span th:text="${cat}"></span>
+                    </label>
+                </div>
+                <div class="error" th:if="${#fields.hasErrors('categorieDemande')}" th:errors="*{categorieDemande}"></div>
+            </div>
+
+            <h3>Pieces communes</h3>
+            <div class="checks">
+                <label class="check-item" th:each="piece : ${piecesCommunes}">
+                    <input type="checkbox" th:field="*{pieceIds}" th:value="${piece.id}">
+                    <span th:text="${piece.libelle}"></span>
+                </label>
+            </div>
+
+            <div id="block-travailleur" class="category-block">
+                <h3>Pieces complementaires - Travailleur</h3>
+                <div class="checks">
+                    <label class="check-item" th:each="piece : ${piecesTravailleur}">
+                        <input type="checkbox" th:field="*{pieceIds}" th:value="${piece.id}">
+                        <span th:text="${piece.libelle}"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="block-investisseur" class="category-block">
+                <h3>Pieces complementaires - Investisseur</h3>
+                <div class="checks">
+                    <label class="check-item" th:each="piece : ${piecesInvestisseur}">
+                        <input type="checkbox" th:field="*{pieceIds}" th:value="${piece.id}">
+                        <span th:text="${piece.libelle}"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Etat civil</h2>
+            <div class="grid">
+                <div class="field">
+                    <label for="nom">Nom *</label>
+                    <input id="nom" type="text" th:field="*{nom}" required>
+                    <div class="error" th:if="${#fields.hasErrors('nom')}" th:errors="*{nom}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="prenoms">Prenoms</label>
+                    <input id="prenoms" type="text" th:field="*{prenoms}">
+                </div>
+
+                <div class="field">
+                    <label for="nomJeuneFille">Nom de jeune fille</label>
+                    <input id="nomJeuneFille" type="text" th:field="*{nomJeuneFille}">
+                </div>
+
+                <div class="field">
+                    <label for="dateNaissance">Ne(e) le</label>
+                    <input id="dateNaissance" type="date" th:field="*{dateNaissance}">
+                </div>
+
+                <div class="field">
+                    <label for="lieuNaissance">a</label>
+                    <input id="lieuNaissance" type="text" th:field="*{lieuNaissance}" placeholder="Antananarivo">
+                </div>
+
+                <div class="field">
+                    <label for="situationFamilleId">Situation de famille *</label>
+                    <select id="situationFamilleId" th:field="*{situationFamilleId}" required>
+                        <option value="">Selectionner...</option>
+                        <option th:each="option : ${situationsFamille}" th:value="${option.id}" th:text="${option.libelle}"></option>
+                    </select>
+                    <div class="error" th:if="${#fields.hasErrors('situationFamilleId')}" th:errors="*{situationFamilleId}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="nationaliteId">Nationalite *</label>
+                    <select id="nationaliteId" th:field="*{nationaliteId}" required>
+                        <option value="">Selectionner...</option>
+                        <option th:each="option : ${nationalites}" th:value="${option.id}" th:text="${option.libelle}"></option>
+                    </select>
+                    <div class="error" th:if="${#fields.hasErrors('nationaliteId')}" th:errors="*{nationaliteId}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="profession">Profession</label>
+                    <input id="profession" type="text" th:field="*{profession}">
+                </div>
+
+                <div class="field">
+                    <label for="telephone">Contact</label>
+                    <input id="telephone" type="text" th:field="*{telephone}" placeholder="+261 34 00 000 00">
+                </div>
+
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input id="email" type="email" th:field="*{email}" placeholder="nom@example.com">
+                    <div class="error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                </div>
+
+                <div class="field full">
+                    <label for="adresse">Adresse a Madagascar *</label>
+                    <textarea id="adresse" th:field="*{adresse}" required placeholder="Lot II NNN, Quartier, Antananarivo"></textarea>
+                    <div class="error" th:if="${#fields.hasErrors('adresse')}" th:errors="*{adresse}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Informations visa transformable</h2>
+            <div class="grid">
+                <div class="field">
+                    <label for="referenceVisa">Reference visa *</label>
+                    <input id="referenceVisa" type="text" th:field="*{referenceVisa}" required>
+                    <div class="error" th:if="${#fields.hasErrors('referenceVisa')}" th:errors="*{referenceVisa}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="numeroVisa">Numero visa *</label>
+                    <input id="numeroVisa" type="text" th:field="*{numeroVisa}" required>
+                    <div class="error" th:if="${#fields.hasErrors('numeroVisa')}" th:errors="*{numeroVisa}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="dateEntreeMada">Date entree Madagascar *</label>
+                    <input id="dateEntreeMada" type="date" th:field="*{dateEntreeMada}" required>
+                    <div class="error" th:if="${#fields.hasErrors('dateEntreeMada')}" th:errors="*{dateEntreeMada}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="lieuEntreeMada">Lieu entree Madagascar *</label>
+                    <input id="lieuEntreeMada" type="text" th:field="*{lieuEntreeMada}" placeholder="Aeroport Ivato" required>
+                    <div class="error" th:if="${#fields.hasErrors('lieuEntreeMada')}" th:errors="*{lieuEntreeMada}"></div>
+                </div>
+
+                <div class="field">
+                    <label for="dateExpirationVisa">Date expiration visa *</label>
+                    <input id="dateExpirationVisa" type="date" th:field="*{dateExpirationVisa}" required>
+                    <div class="error" th:if="${#fields.hasErrors('dateExpirationVisa')}" th:errors="*{dateExpirationVisa}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a class="btn btn-secondary" th:href="@{/demandes}">Annuler</a>
+            <button id="saveButton" class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        const categoryInputs = document.querySelectorAll('input[name="categorieDemande"]');
+        const blockTravailleur = document.getElementById('block-travailleur');
+        const blockInvestisseur = document.getElementById('block-investisseur');
+        const saveButton = document.getElementById('saveButton');
+
+        const mandatoryFields = [
+            document.getElementById('nom'),
+            document.getElementById('situationFamilleId'),
+            document.getElementById('adresse'),
+            document.getElementById('nationaliteId')
+        ];
+
+        function updateCategoryBlocks() {
+            const selected = document.querySelector('input[name="categorieDemande"]:checked');
+            if (!selected) {
+                blockTravailleur.classList.remove('active');
+                blockInvestisseur.classList.remove('active');
+                return;
+            }
+
+            if (selected.value === 'TRAVAILLEUR') {
+                blockTravailleur.classList.add('active');
+                blockInvestisseur.classList.remove('active');
+            } else {
+                blockInvestisseur.classList.add('active');
+                blockTravailleur.classList.remove('active');
+            }
+        }
+
+        function canSave() {
+            return mandatoryFields.every((field) => {
+                if (!field) {
+                    return false;
+                }
+                const value = (field.value || '').trim();
+                return value.length > 0;
+            });
+        }
+
+        function updateSaveState() {
+            saveButton.disabled = !canSave();
+        }
+
+        categoryInputs.forEach((input) => {
+            input.addEventListener('change', updateCategoryBlocks);
+        });
+
+        mandatoryFields.forEach((field) => {
+            if (field) {
+                field.addEventListener('input', updateSaveState);
+                field.addEventListener('change', updateSaveState);
+            }
+        });
+
+        updateCategoryBlocks();
+        updateSaveState();
+    })();
+</script>
+</body>
+</html>

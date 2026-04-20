@@ -22,3 +22,28 @@ atao case a coche coche
 pour etat civil voir file:///G:/S6/Visado-de-larga-duracio%CC%81n-Formulario.pdf
 
 form de saisie travailleur et inverstisseur
+
+
+---------------------------------------------
+
+piece justificative : olblig et fac
+demande valide , afaka modif am manaraka
+status : dossier creee (pas valide)
+
+rehefa vita scan :bouton : terminer scan: tsy maintsy feno daholo pieces justificatives
+status : dossier scnee (tsy afaka hovaina intsony)
+
+manana carte resident sy visa
+status : visa approuve
+
+sprint 2 : sans donnees interieurs
+sprint 3 : scan terminee
+
+
+----------------------------------------------
+base:
+fac : prenom
+x
+
+table carte resident : iddemandeur,idpassport
+table visa : iddemandeur,idpassport

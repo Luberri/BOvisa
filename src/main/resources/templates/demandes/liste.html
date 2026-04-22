@@ -4,122 +4,342 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demandes visa long sejour</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f4f4ef;
-            --text: #212121;
-            --muted: #5f5a52;
-            --line: #d6d0c6;
-            --accent: #8a4b08;
-            --accent-strong: #6f3c06;
-            --ok: #166534;
+            --white: #ffffff;
+            --off-white: #f8f9fb;
+            --surface: #ffffff;
+            --border: #e2e6ec;
+            --border-strong: #c8cfd8;
+            --text: #0f1923;
+            --text-secondary: #4a5568;
+            --text-muted: #8a96a8;
+            --accent: #1a3a6b;
+            --accent-mid: #1e4a8a;
+            --accent-light: #e8eef7;
+            --accent-subtle: #f0f4fb;
+            --ok: #0d7a4e;
             --error: #b91c1c;
-            --card: #fffdf8;
+            --error-bg: #fef2f2;
+            --shadow-sm: 0 1px 3px rgba(15,25,35,0.07), 0 1px 2px rgba(15,25,35,0.04);
+            --shadow-md: 0 4px 12px rgba(15,25,35,0.08), 0 2px 4px rgba(15,25,35,0.05);
+            --radius: 10px;
+            --radius-lg: 14px;
         }
 
-        * { box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            margin: 0;
-            font-family: Georgia, "Times New Roman", serif;
-            background: radial-gradient(circle at top left, #fff8e8, var(--bg));
+            font-family: 'DM Sans', sans-serif;
+            background: var(--off-white);
             color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .gov-banner {
+            background: var(--accent);
+            color: #fff;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            padding: 9px 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gov-banner-logo {
+            width: 22px;
+            height: 22px;
+            border: 1.5px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .gov-banner-text {
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .gov-banner-sep {
+            opacity: 0.35;
+            margin: 0 4px;
+        }
+
+        .site-header {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-seal {
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .header-seal svg {
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: #fff;
+            stroke-width: 1.5;
+        }
+
+        .header-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 17px;
+            color: var(--accent);
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+        }
+
+        .header-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .page {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 36px 24px 60px;
         }
 
         .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .page-hero {
+            margin-bottom: 8px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .page-hero-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent-mid);
+            background: var(--accent-light);
+            padding: 5px 12px;
+            border-radius: 100px;
+            margin-bottom: 14px;
+        }
+
+        .page-hero-eyebrow span {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-mid);
+            border-radius: 50%;
+            display: inline-block;
         }
 
         h1 {
-            margin: 0 0 12px;
-            font-size: 34px;
-            letter-spacing: 0.4px;
+            font-family: 'DM Serif Display', serif;
+            font-size: 30px;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
         }
 
-        .topbar {
+        .small-muted {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .top-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 16px;
             flex-wrap: wrap;
-            margin-bottom: 18px;
         }
 
         .btn {
             border: none;
-            background: var(--accent);
-            color: #fff;
-            padding: 10px 14px;
             border-radius: 8px;
-            text-decoration: none;
-            font-size: 15px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.15s ease, background-color 0.15s ease;
+            text-decoration: none;
+            transition: all 0.18s ease;
+            font-family: 'DM Sans', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            letter-spacing: -0.01em;
         }
 
-        .btn:hover {
-            background: var(--accent-strong);
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(26,58,107,0.25);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-mid);
             transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(26,58,107,0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1.5px solid var(--border-strong);
+        }
+
+        .btn-ghost:hover {
+            background: var(--off-white);
+            border-color: #a0aec0;
+        }
+
+        .card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--accent-subtle), var(--white) 60%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 18px;
+            letter-spacing: -0.01em;
+        }
+
+        .card-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .card-body {
+            padding: 16px 20px;
         }
 
         .flash {
             border-radius: 8px;
-            padding: 10px 12px;
-            margin: 10px 0;
-            font-size: 14px;
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 10px;
         }
 
         .flash.ok {
-            background: #eaf9ee;
+            background: #e8fbf2;
             color: var(--ok);
-            border: 1px solid #b7e5c1;
+            border: 1px solid #b6e9d1;
         }
 
         .flash.error {
-            background: #fef0f0;
+            background: var(--error-bg);
             color: var(--error);
-            border: 1px solid #f9c3c3;
+            border: 1px solid #fca5a5;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--card);
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            overflow: hidden;
         }
 
         th, td {
-            padding: 11px 12px;
-            border-bottom: 1px solid var(--line);
+            padding: 11px 10px;
+            border-bottom: 1px solid var(--border);
             text-align: left;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         th {
-            background: #f2ece0;
-            color: #3f3930;
+            color: var(--text-secondary);
             font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 11px;
         }
 
         tr:last-child td {
             border-bottom: none;
         }
 
-        .small-muted {
-            color: var(--muted);
-            font-size: 13px;
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 9px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: var(--accent-subtle);
+            color: var(--accent-mid);
+            border: 1px solid var(--accent-light);
+        }
+
+        .status-pill::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent-mid);
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .table-action {
+            padding: 6px 10px;
+            font-size: 12px;
         }
 
         .empty {
             padding: 24px;
             text-align: center;
-            color: var(--muted);
-            background: var(--card);
-            border: 1px dashed var(--line);
+            color: var(--text-muted);
+            background: var(--off-white);
+            border: 1px dashed var(--border-strong);
             border-radius: 10px;
         }
 
@@ -133,15 +353,15 @@
             }
 
             tr {
-                border: 1px solid var(--line);
+                border: 1px solid var(--border);
                 border-radius: 10px;
                 padding: 10px;
                 margin-bottom: 12px;
-                background: var(--card);
+                background: var(--white);
             }
 
             td {
-                border-bottom: 1px dashed var(--line);
+                border-bottom: 1px dashed var(--border);
                 padding: 8px 0;
             }
 
@@ -153,53 +373,105 @@
                 content: attr(data-label);
                 display: block;
                 font-weight: 700;
-                color: #4b4338;
+                color: var(--text-secondary);
                 margin-bottom: 2px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .gov-banner,
+            .site-header {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .page {
+                padding: 20px 14px 40px;
             }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="topbar">
+
+<div class="gov-banner">
+    <div class="gov-banner-logo">MG</div>
+    <span class="gov-banner-text">Republique de Madagascar</span>
+    <span class="gov-banner-sep">|</span>
+    <span class="gov-banner-text">Ministere de l'Interieur - Direction de l'Immigration</span>
+</div>
+
+<header class="site-header">
+    <div class="header-brand">
+        <div class="header-seal">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/>
+            </svg>
+        </div>
         <div>
+            <div class="header-title">Portail Visa &amp; Titres de Sejour</div>
+            <div class="header-subtitle">Service de l'Immigration Madagascar</div>
+        </div>
+    </div>
+</header>
+
+<div class="page">
+    <div class="container">
+        <div class="page-hero">
+            <div class="page-hero-eyebrow"><span></span>Suivi des dossiers</div>
             <h1>Demandes visa long sejour</h1>
             <div class="small-muted">Type gere dans ce sprint: NOUVEAU_TITRE</div>
         </div>
-        <a class="btn" th:href="@{/demandes/nouveau}">Nouvelle demande</a>
+
+        <div class="top-actions">
+            <div></div>
+            <a class="btn btn-primary" th:href="@{/demandes/nouveau}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nouvelle demande
+            </a>
+        </div>
+
+        <div th:if="${successMessage}" class="flash ok" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="flash error" th:text="${errorMessage}"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Liste des demandes</div>
+                    <div class="card-sub">Consultez et modifiez les dossiers deja saisis</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div th:if="${#lists.isEmpty(demandes)}" class="empty">
+                    Aucune demande enregistree pour le moment.
+                </div>
+
+                <table th:if="${!#lists.isEmpty(demandes)}">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Demandeur</th>
+                        <th>Categorie</th>
+                        <th>Statut</th>
+                        <th>Date creation</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="demande : ${demandes}">
+                        <td data-label="ID" th:text="${demande.id}"></td>
+                        <td data-label="Demandeur" th:text="${demande.nomComplet}"></td>
+                        <td data-label="Categorie" th:text="${demande.categorieDemande}"></td>
+                        <td data-label="Statut"><span class="status-pill" th:text="${demande.statut}"></span></td>
+                        <td data-label="Date creation" th:text="${#temporals.format(demande.dateCreation, 'dd/MM/yyyy HH:mm')}"></td>
+                        <td data-label="Action">
+                            <a class="btn btn-ghost table-action" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-
-    <div th:if="${successMessage}" class="flash ok" th:text="${successMessage}"></div>
-    <div th:if="${errorMessage}" class="flash error" th:text="${errorMessage}"></div>
-
-    <div th:if="${#lists.isEmpty(demandes)}" class="empty">
-        Aucune demande enregistree pour le moment.
-    </div>
-
-    <table th:if="${!#lists.isEmpty(demandes)}">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Demandeur</th>
-            <th>Categorie</th>
-            <th>Statut</th>
-            <th>Date creation</th>
-            <th>Action</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="demande : ${demandes}">
-            <td data-label="ID" th:text="${demande.id}"></td>
-            <td data-label="Demandeur" th:text="${demande.nomComplet}"></td>
-            <td data-label="Categorie" th:text="${demande.categorieDemande}"></td>
-            <td data-label="Statut" th:text="${demande.statut}"></td>
-            <td data-label="Date creation" th:text="${#temporals.format(demande.dateCreation, 'dd/MM/yyyy HH:mm')}"></td>
-            <td data-label="Action">
-                <a class="btn" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
-            </td>
-        </tr>
-        </tbody>
-    </table>
 </div>
 </body>
 </html>

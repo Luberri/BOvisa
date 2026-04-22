@@ -937,7 +937,39 @@
             </div>
         </div>
 
-        <!-- ── Card 3: Informations visa ── -->
+        <!-- ── Card 3: Passeport ── -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24"><path d="M4 3h13a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H4z"/><line x1="4" y1="7" x2="20" y2="7"/><circle cx="8" cy="13" r="1.5"/><line x1="11" y1="12" x2="17" y2="12"/><line x1="11" y1="15" x2="17" y2="15"/></svg>
+                </div>
+                <div class="card-heading">
+                    <h2>Informations passeport</h2>
+                    <div class="card-sub">Le visa transformable doit être lié à un passeport</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="grid">
+                    <div class="field">
+                        <label for="numeroPasseport">Passeport n° <span class="req">*</span></label>
+                        <input id="numeroPasseport" type="text" th:field="*{numeroPasseport}" required placeholder="ex. 23AB45678">
+                        <div class="error-msg" th:if="${#fields.hasErrors('numeroPasseport')}" th:errors="*{numeroPasseport}"></div>
+                    </div>
+
+                    <div class="field">
+                        <label for="dateDelivrancePasseport">Date de délivrance</label>
+                        <input id="dateDelivrancePasseport" type="date" th:field="*{dateDelivrancePasseport}">
+                    </div>
+
+                    <div class="field">
+                        <label for="dateExpirationPasseport">Date d'expiration</label>
+                        <input id="dateExpirationPasseport" type="date" th:field="*{dateExpirationPasseport}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Card 4: Informations visa ── -->
         <div class="card">
             <div class="card-header">
                 <div class="card-icon">
@@ -1009,7 +1041,8 @@
             document.getElementById('nom'),
             document.getElementById('situationFamilleId'),
             document.getElementById('adresse'),
-            document.getElementById('nationaliteId')
+            document.getElementById('nationaliteId'),
+            document.getElementById('numeroPasseport')
         ];
 
         function updateCategoryBlocks() {

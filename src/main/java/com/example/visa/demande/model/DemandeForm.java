@@ -32,6 +32,12 @@ public class DemandeForm {
     @NotBlank(message = "L'adresse a Madagascar est obligatoire")
     private String adresse;
 
+    @NotBlank(message = "Le numero du passeport est obligatoire")
+    private String numeroPasseport;
+
+    private LocalDate dateDelivrancePasseport;
+    private LocalDate dateExpirationPasseport;
+
     @NotBlank(message = "La categorie est obligatoire")
     private String categorieDemande;
 
@@ -146,6 +152,30 @@ public class DemandeForm {
 
     public void setCategorieDemande(String categorieDemande) {
         this.categorieDemande = categorieDemande;
+    }
+
+    public String getNumeroPasseport() {
+        return numeroPasseport;
+    }
+
+    public void setNumeroPasseport(String numeroPasseport) {
+        this.numeroPasseport = numeroPasseport;
+    }
+
+    public LocalDate getDateDelivrancePasseport() {
+        return dateDelivrancePasseport;
+    }
+
+    public void setDateDelivrancePasseport(LocalDate dateDelivrancePasseport) {
+        this.dateDelivrancePasseport = dateDelivrancePasseport;
+    }
+
+    public LocalDate getDateExpirationPasseport() {
+        return dateExpirationPasseport;
+    }
+
+    public void setDateExpirationPasseport(LocalDate dateExpirationPasseport) {
+        this.dateExpirationPasseport = dateExpirationPasseport;
     }
 
     public String getReferenceVisa() {

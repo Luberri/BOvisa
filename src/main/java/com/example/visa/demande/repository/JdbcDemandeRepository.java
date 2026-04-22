@@ -7,7 +7,6 @@ import com.example.visa.demande.model.OptionItem;
 import com.example.visa.demande.model.PieceJustificativeItem;
 import java.sql.Date;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -110,7 +109,8 @@ public class JdbcDemandeRepository implements DemandeRepository {
     @Override
     public Integer createDemande(DemandeForm form) {
         Integer demandeurId = insertDemandeur(form);
-        Integer visaId = insertVisa(demandeurId, form);
+        Integer passeportId = insertPasseport(demandeurId, form);
+        Integer visaId = insertVisa(demandeurId, passeportId, form);
         Integer demandeId = insertDemande(demandeurId, visaId, form.getCategorieDemande());
         insertDemandePieces(demandeId, form.getCategorieDemande(), form.getPieceIds());
         return demandeId;
@@ -121,6 +121,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
         List<DemandeEditData> result = jdbcTemplate.query(
                 """
                 select d.id_demandeur,
+                      v.id_passeport,
                        d.id_visa_transformable,
                        d.categorie_demande,
                        dm.nom,
@@ -134,6 +135,9 @@ public class JdbcDemandeRepository implements DemandeRepository {
                        dm.telephone,
                        dm.email,
                        dm.adresse,
+                       p.numero_passeport,
+                       p.date_delivrance_passeport,
+                       p.date_expiration_passeport,
                        v.reference_visa,
                        v.numero_visa,
                        v.date_entree_mada,
@@ -142,6 +146,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                 from demande d
                 join demandeur dm on dm.id = d.id_demandeur
                 join visa v on v.id = d.id_visa_transformable
+                left join passeport p on p.id = v.id_passeport
                 where d.id = ?
                 """,
                 (rs, rowNum) -> {
@@ -157,6 +162,9 @@ public class JdbcDemandeRepository implements DemandeRepository {
                     form.setTelephone(rs.getString("telephone"));
                     form.setEmail(rs.getString("email"));
                     form.setAdresse(rs.getString("adresse"));
+                    form.setNumeroPasseport(rs.getString("numero_passeport"));
+                    form.setDateDelivrancePasseport(rs.getObject("date_delivrance_passeport", java.time.LocalDate.class));
+                    form.setDateExpirationPasseport(rs.getObject("date_expiration_passeport", java.time.LocalDate.class));
                     form.setCategorieDemande(rs.getString("categorie_demande"));
                     form.setReferenceVisa(rs.getString("reference_visa"));
                     form.setNumeroVisa(rs.getString("numero_visa"));
@@ -177,6 +185,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
 
                     return new DemandeEditData(
                             rs.getInt("id_demandeur"),
+                            rs.getObject("id_passeport", Integer.class),
                             rs.getInt("id_visa_transformable"),
                             form,
                             selectedPieces
@@ -192,6 +201,25 @@ public class JdbcDemandeRepository implements DemandeRepository {
     public void updateDemande(Integer demandeId, DemandeForm form) {
         DemandeEditData editData = findForEdit(demandeId)
                 .orElseThrow(() -> new IllegalArgumentException("Demande introuvable"));
+
+        Integer passeportId = editData.passeportId();
+        if (passeportId == null) {
+            passeportId = insertPasseport(editData.demandeurId(), form);
+        } else {
+            jdbcTemplate.update(
+                    """
+                    update passeport
+                    set numero_passeport = ?,
+                        date_delivrance_passeport = ?,
+                        date_expiration_passeport = ?
+                    where id = ?
+                    """,
+                    form.getNumeroPasseport(),
+                    toSqlDate(form.getDateDelivrancePasseport()),
+                    toSqlDate(form.getDateExpirationPasseport()),
+                    passeportId
+            );
+        }
 
         jdbcTemplate.update(
                 """
@@ -226,7 +254,8 @@ public class JdbcDemandeRepository implements DemandeRepository {
         jdbcTemplate.update(
                 """
                 update visa
-                set reference_visa = ?,
+                set id_passeport = ?,
+                    reference_visa = ?,
                     numero_visa = ?,
                     nature_visa = cast(? as nature_visa_enum),
                     categorie_demande = cast(? as categorie_demande_enum),
@@ -235,6 +264,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                     date_expiration_visa = ?
                 where id = ?
                 """,
+                passeportId,
                 form.getReferenceVisa(),
                 form.getNumeroVisa(),
                 "TRANSFORMABLE",
@@ -293,7 +323,28 @@ public class JdbcDemandeRepository implements DemandeRepository {
         return extractGeneratedId(keyHolder);
     }
 
-    private Integer insertVisa(Integer demandeurId, DemandeForm form) {
+    private Integer insertPasseport(Integer demandeurId, DemandeForm form) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        PreparedStatementCreator creator = connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    """
+                    insert into passeport (
+                        id_demandeur, numero_passeport, date_delivrance_passeport, date_expiration_passeport
+                    ) values (?, ?, ?, ?)
+                    """,
+                    new String[]{"id"}
+            );
+            ps.setInt(1, demandeurId);
+            ps.setString(2, form.getNumeroPasseport());
+            ps.setDate(3, toSqlDate(form.getDateDelivrancePasseport()));
+            ps.setDate(4, toSqlDate(form.getDateExpirationPasseport()));
+            return ps;
+        };
+        jdbcTemplate.update(creator, keyHolder);
+        return extractGeneratedId(keyHolder);
+    }
+
+    private Integer insertVisa(Integer demandeurId, Integer passeportId, DemandeForm form) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         PreparedStatementCreator creator = connection -> {
             PreparedStatement ps = connection.prepareStatement(
@@ -301,18 +352,19 @@ public class JdbcDemandeRepository implements DemandeRepository {
                     insert into visa (
                         id_demandeur, id_passeport, reference_visa, numero_visa, nature_visa,
                         categorie_demande, date_entree_mada, lieu_entree_mada, date_expiration_visa
-                    ) values (?, null, ?, ?, cast(? as nature_visa_enum), cast(? as categorie_demande_enum), ?, ?, ?)
+                    ) values (?, ?, ?, ?, cast(? as nature_visa_enum), cast(? as categorie_demande_enum), ?, ?, ?)
                     """,
                     new String[]{"id"}
             );
             ps.setInt(1, demandeurId);
-            ps.setString(2, form.getReferenceVisa());
-            ps.setString(3, form.getNumeroVisa());
-            ps.setString(4, "TRANSFORMABLE");
-            ps.setString(5, form.getCategorieDemande());
-            ps.setDate(6, toSqlDate(form.getDateEntreeMada()));
-            ps.setString(7, form.getLieuEntreeMada());
-            ps.setDate(8, toSqlDate(form.getDateExpirationVisa()));
+            ps.setInt(2, passeportId);
+            ps.setString(3, form.getReferenceVisa());
+            ps.setString(4, form.getNumeroVisa());
+            ps.setString(5, "TRANSFORMABLE");
+            ps.setString(6, form.getCategorieDemande());
+            ps.setDate(7, toSqlDate(form.getDateEntreeMada()));
+            ps.setString(8, form.getLieuEntreeMada());
+            ps.setDate(9, toSqlDate(form.getDateExpirationVisa()));
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);

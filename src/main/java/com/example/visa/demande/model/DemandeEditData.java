@@ -4,6 +4,7 @@ import java.util.Set;
 
 public record DemandeEditData(
         Integer demandeurId,
+        Integer passeportId,
         Integer visaId,
         DemandeForm form,
         Set<Integer> pieceIds

@@ -1,3 +1,7 @@
+\c postgres;
+DROP DATABASE IF EXISTS gestion_visa;
+CREATE DATABASE gestion_visa;
+\c gestion_visa;
 -- =========================
 -- TYPES ENUM
 -- =========================
@@ -15,9 +19,14 @@ CREATE TYPE statut_demande_enum AS ENUM (
     'VISA_REFUSE'
 );
 
-CREATE TYPE type_visa_enum AS ENUM (
+CREATE TYPE categorie_demande_enum AS ENUM (
     'TRAVAILLEUR',
     'INVESTISSEUR'
+);
+
+CREATE TYPE nature_visa_enum AS ENUM (
+    'TRANSFORMABLE',
+    'LONG_SEJOUR'
 );
 
 CREATE TYPE statut_piece_enum AS ENUM (
@@ -62,12 +71,44 @@ CREATE TABLE demandeur (
     telephone VARCHAR(50),
     email VARCHAR(150),
 
-    adresse TEXT NOT NULL,
+    adresse TEXT NOT NULL
+);
 
-    -- PASSEPORT
-    numero_passeport VARCHAR(100) NOT NULL,
+-- =========================
+-- PASSEPORT (1 demandeur -> n passeports)
+-- =========================
+
+CREATE TABLE passeport (
+    id SERIAL PRIMARY KEY,
+    id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+
+    numero_passeport VARCHAR(100) NOT NULL UNIQUE,
     date_delivrance_passeport DATE,
-    date_expiration_passeport DATE
+    date_expiration_passeport DATE,
+
+    est_actif BOOLEAN DEFAULT TRUE,
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================
+-- VISA (1 demandeur -> n visas transformables)
+-- =========================
+
+CREATE TABLE visa (
+    id SERIAL PRIMARY KEY,
+    id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+    id_passeport INT REFERENCES passeport(id) ON DELETE SET NULL,
+
+    reference_visa VARCHAR(100) NOT NULL,
+    numero_visa VARCHAR(100) NOT NULL UNIQUE,
+    nature_visa nature_visa_enum NOT NULL DEFAULT 'TRANSFORMABLE',
+    categorie_demande categorie_demande_enum,
+
+    date_entree_mada DATE,
+    lieu_entree_mada VARCHAR(150),
+    date_expiration_visa DATE NOT NULL,
+
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =========================
@@ -77,22 +118,62 @@ CREATE TABLE demandeur (
 CREATE TABLE demande (
     id SERIAL PRIMARY KEY,
 
-    demandeur_id INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+    id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+    id_visa_transformable INT NOT NULL REFERENCES visa(id) ON DELETE RESTRICT,
 
     type_demande type_demande_enum NOT NULL,
-    type_visa type_visa_enum NOT NULL,
+    categorie_demande categorie_demande_enum NOT NULL,
 
     -- seulement pour certains types
     avec_donnees_anterieures BOOLEAN DEFAULT NULL,
 
-    -- INFOS VISA TRANSFORMABLE
-    reference_visa VARCHAR(100),
-    numero_visa VARCHAR(100),
-    date_entree_mada DATE,
-    lieu_entree_mada VARCHAR(150),
-    date_expiration_visa DATE,
-
     statut statut_demande_enum DEFAULT 'DOSSIER_CREE',
+
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_avec_donnees_anterieures
+    CHECK (
+        (type_demande = 'NOUVEAU_TITRE' AND avec_donnees_anterieures IS NULL)
+        OR
+        (type_demande IN ('TRANSFERT_VISA', 'DUPLICATA_RESIDENT') AND avec_donnees_anterieures IS NOT NULL)
+    )
+);
+
+CREATE OR REPLACE FUNCTION verifier_demande_visa_transformable()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM visa v
+        WHERE v.id = NEW.id_visa_transformable
+          AND v.id_demandeur = NEW.id_demandeur
+          AND v.nature_visa = 'TRANSFORMABLE'
+    ) THEN
+        RAISE EXCEPTION 'Le visa de la demande doit etre TRANSFORMABLE et appartenir au meme demandeur';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_verifier_demande_visa_transformable
+BEFORE INSERT OR UPDATE ON demande
+FOR EACH ROW
+EXECUTE FUNCTION verifier_demande_visa_transformable();
+
+-- =========================
+-- CARTE RESIDENT
+-- =========================
+
+CREATE TABLE carte_resident (
+    id SERIAL PRIMARY KEY,
+
+    id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+    id_demande INT UNIQUE REFERENCES demande(id) ON DELETE SET NULL,
+
+    numero_carte_resident VARCHAR(100) UNIQUE,
+    date_delivrance DATE,
+    date_expiration DATE,
 
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -107,7 +188,7 @@ CREATE TABLE piece_justificative (
     libelle TEXT NOT NULL,
 
     -- NULL = commune
-    type_visa type_visa_enum,
+    categorie_demande categorie_demande_enum,
 
     statut statut_piece_enum NOT NULL
 );
@@ -126,6 +207,11 @@ CREATE TABLE demande_piece (
 
     UNIQUE (demande_id, piece_id)
 );
+
+CREATE INDEX idx_passeport_demandeur ON passeport(id_demandeur);
+CREATE INDEX idx_visa_demandeur ON visa(id_demandeur);
+CREATE INDEX idx_demande_demandeur ON demande(id_demandeur);
+CREATE INDEX idx_demande_visa_transformable ON demande(id_visa_transformable);
 
 -- =========================
 -- DONNEES INITIALES
@@ -147,8 +233,8 @@ INSERT INTO nationalite (libelle) VALUES
 -- PIECES COMMUNES
 -- =========================
 
-INSERT INTO piece_justificative (libelle, type_visa, statut) VALUES
-('02 photos d’identité', NULL, 'OBLIGATOIRE'),
+INSERT INTO piece_justificative (libelle, categorie_demande, statut) VALUES
+('02 photos d''identité', NULL, 'OBLIGATOIRE'),
 ('Notice de renseignement', NULL, 'OBLIGATOIRE'),
 ('Demande adressée au Ministère (email + téléphone)', NULL, 'OBLIGATOIRE'),
 ('Photocopie certifiée du visa en cours de validité', NULL, 'OBLIGATOIRE'),
@@ -161,7 +247,7 @@ INSERT INTO piece_justificative (libelle, type_visa, statut) VALUES
 -- PIECES INVESTISSEUR
 -- =========================
 
-INSERT INTO piece_justificative (libelle, type_visa, statut) VALUES
+INSERT INTO piece_justificative (libelle, categorie_demande, statut) VALUES
 ('Statut de la société', 'INVESTISSEUR', 'OBLIGATOIRE'),
 ('Inscription registre de commerce', 'INVESTISSEUR', 'OBLIGATOIRE'),
 ('Carte fiscale', 'INVESTISSEUR', 'OBLIGATOIRE');
@@ -170,6 +256,6 @@ INSERT INTO piece_justificative (libelle, type_visa, statut) VALUES
 -- PIECES TRAVAILLEUR
 -- =========================
 
-INSERT INTO piece_justificative (libelle, type_visa, statut) VALUES
-('Autorisation d’emploi délivrée par le ministère', 'TRAVAILLEUR', 'OBLIGATOIRE'),
-('Attestation d’emploi (original)', 'TRAVAILLEUR', 'OBLIGATOIRE');
+INSERT INTO piece_justificative (libelle, categorie_demande, statut) VALUES
+('Autorisation d''emploi délivrée par le ministère', 'TRAVAILLEUR', 'OBLIGATOIRE'),
+('Attestation d''emploi (original)', 'TRAVAILLEUR', 'OBLIGATOIRE');

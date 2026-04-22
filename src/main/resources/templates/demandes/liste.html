@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demandes visa long sejour</title>
+    <style>
+        :root {
+            --bg: #f4f4ef;
+            --text: #212121;
+            --muted: #5f5a52;
+            --line: #d6d0c6;
+            --accent: #8a4b08;
+            --accent-strong: #6f3c06;
+            --ok: #166534;
+            --error: #b91c1c;
+            --card: #fffdf8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            background: radial-gradient(circle at top left, #fff8e8, var(--bg));
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 34px;
+            letter-spacing: 0.4px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .btn {
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-strong);
+            transform: translateY(-1px);
+        }
+
+        .flash {
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .flash.ok {
+            background: #eaf9ee;
+            color: var(--ok);
+            border: 1px solid #b7e5c1;
+        }
+
+        .flash.error {
+            background: #fef0f0;
+            color: var(--error);
+            border: 1px solid #f9c3c3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 11px 12px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f2ece0;
+            color: #3f3930;
+            font-weight: 700;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .small-muted {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+            background: var(--card);
+            border: 1px dashed var(--line);
+            border-radius: 10px;
+        }
+
+        @media (max-width: 900px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            thead {
+                display: none;
+            }
+
+            tr {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                padding: 10px;
+                margin-bottom: 12px;
+                background: var(--card);
+            }
+
+            td {
+                border-bottom: 1px dashed var(--line);
+                padding: 8px 0;
+            }
+
+            td:last-child {
+                border-bottom: none;
+            }
+
+            td::before {
+                content: attr(data-label);
+                display: block;
+                font-weight: 700;
+                color: #4b4338;
+                margin-bottom: 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="topbar">
+        <div>
+            <h1>Demandes visa long sejour</h1>
+            <div class="small-muted">Type gere dans ce sprint: NOUVEAU_TITRE</div>
+        </div>
+        <a class="btn" th:href="@{/demandes/nouveau}">Nouvelle demande</a>
+    </div>
+
+    <div th:if="${successMessage}" class="flash ok" th:text="${successMessage}"></div>
+    <div th:if="${errorMessage}" class="flash error" th:text="${errorMessage}"></div>
+
+    <div th:if="${#lists.isEmpty(demandes)}" class="empty">
+        Aucune demande enregistree pour le moment.
+    </div>
+
+    <table th:if="${!#lists.isEmpty(demandes)}">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Demandeur</th>
+            <th>Categorie</th>
+            <th>Statut</th>
+            <th>Date creation</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="demande : ${demandes}">
+            <td data-label="ID" th:text="${demande.id}"></td>
+            <td data-label="Demandeur" th:text="${demande.nomComplet}"></td>
+            <td data-label="Categorie" th:text="${demande.categorieDemande}"></td>
+            <td data-label="Statut" th:text="${demande.statut}"></td>
+            <td data-label="Date creation" th:text="${#temporals.format(demande.dateCreation, 'dd/MM/yyyy HH:mm')}"></td>
+            <td data-label="Action">
+                <a class="btn" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -273,7 +274,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                         situation_famille_id, nationalite_id, profession, telephone, email, adresse
                     ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    Statement.RETURN_GENERATED_KEYS
+                    new String[]{"id"}
             );
             ps.setString(1, form.getNom());
             ps.setString(2, form.getPrenoms());
@@ -289,7 +290,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);
-        return keyHolder.getKeyAs(Integer.class);
+        return extractGeneratedId(keyHolder);
     }
 
     private Integer insertVisa(Integer demandeurId, DemandeForm form) {
@@ -302,7 +303,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                         categorie_demande, date_entree_mada, lieu_entree_mada, date_expiration_visa
                     ) values (?, null, ?, ?, cast(? as nature_visa_enum), cast(? as categorie_demande_enum), ?, ?, ?)
                     """,
-                    Statement.RETURN_GENERATED_KEYS
+                    new String[]{"id"}
             );
             ps.setInt(1, demandeurId);
             ps.setString(2, form.getReferenceVisa());
@@ -315,7 +316,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);
-        return keyHolder.getKeyAs(Integer.class);
+        return extractGeneratedId(keyHolder);
     }
 
     private Integer insertDemande(Integer demandeurId, Integer visaId, String categorieDemande) {
@@ -328,7 +329,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                         avec_donnees_anterieures, statut
                     ) values (?, ?, cast(? as type_demande_enum), cast(? as categorie_demande_enum), null, cast(? as statut_demande_enum))
                     """,
-                    Statement.RETURN_GENERATED_KEYS
+                    new String[]{"id"}
             );
             ps.setInt(1, demandeurId);
             ps.setInt(2, visaId);
@@ -338,7 +339,21 @@ public class JdbcDemandeRepository implements DemandeRepository {
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);
-        return keyHolder.getKeyAs(Integer.class);
+        return extractGeneratedId(keyHolder);
+    }
+
+    private Integer extractGeneratedId(KeyHolder keyHolder) {
+        Number key = keyHolder.getKey();
+        if (key != null) {
+            return key.intValue();
+        }
+
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null && keys.get("id") instanceof Number id) {
+            return id.intValue();
+        }
+
+        throw new IllegalStateException("Impossible de recuperer l'id genere");
     }
 
     private void insertDemandePieces(Integer demandeId, String categorieDemande, Set<Integer> selectedPieceIds) {

@@ -208,6 +208,20 @@ CREATE TABLE demande_piece (
     UNIQUE (demande_id, piece_id)
 );
 
+CREATE TABLE historique_remis (
+    id SERIAL PRIMARY KEY,
+    demande_id INT NOT NULL REFERENCES demande(id) ON DELETE CASCADE,
+    piece_id INT NOT NULL REFERENCES piece_justificative(id) ON DELETE CASCADE,
+    scanne BOOLEAN NOT NULL DEFAULT TRUE,
+    motif TEXT,
+    fichier_nom TEXT,
+    fichier_type TEXT,
+    fichier_contenu BYTEA,
+    date_modification TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_historique_remis_demande_piece_date ON historique_remis(demande_id, piece_id, date_modification DESC);
+
 CREATE INDEX idx_passeport_demandeur ON passeport(id_demandeur);
 CREATE INDEX idx_visa_demandeur ON visa(id_demandeur);
 CREATE INDEX idx_demande_demandeur ON demande(id_demandeur);

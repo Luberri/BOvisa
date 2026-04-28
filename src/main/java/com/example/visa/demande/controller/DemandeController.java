@@ -1,6 +1,7 @@
 package com.example.visa.demande.controller;
 
 import com.example.visa.demande.model.DemandeEditData;
+import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.service.DemandeService;
 import jakarta.validation.Valid;
@@ -12,8 +13,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 @Controller
 @RequestMapping("/demandes")
@@ -31,6 +34,18 @@ public class DemandeController {
     public String liste(Model model) {
         model.addAttribute("demandes", demandeService.findDemandes());
         return "demandes/liste";
+    }
+
+    @GetMapping("/{id}")
+    public String detail(@PathVariable("id") Integer demandeId, Model model, RedirectAttributes redirectAttributes) {
+        DemandeDetailData detailData = demandeService.findDetail(demandeId).orElse(null);
+        if (detailData == null) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Demande introuvable");
+            return "redirect:/demandes";
+        }
+
+        model.addAttribute("detail", detailData);
+        return "demandes/detail";
     }
 
     @GetMapping("/nouveau")
@@ -86,6 +101,26 @@ public class DemandeController {
         demandeService.updateDemande(demandeId, form);
         redirectAttributes.addFlashAttribute("successMessage", "Demande modifiee avec succes");
         return "redirect:/demandes";
+    }
+
+    @PostMapping("/{demandeId}/pieces/{pieceId}/scanner")
+    public String scannerPiece(
+            @PathVariable Integer demandeId,
+            @PathVariable Integer pieceId,
+            @RequestParam(value = "motif", required = false) String motif,
+            @RequestParam(value = "fichiers", required = false) MultipartFile[] fichiers,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            demandeService.scanPiece(demandeId, pieceId, motif, fichiers);
+            redirectAttributes.addFlashAttribute("successMessage", "Piece scannee avec succes");
+        } catch (IllegalArgumentException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        } catch (IllegalStateException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+
+        return "redirect:/demandes/" + demandeId;
     }
 
     private void enrichFormModel(Model model, DemandeForm form, boolean editMode, Integer demandeId) {

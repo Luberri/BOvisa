@@ -1,9 +1,11 @@
 package com.example.visa.demande.repository;
 
 import com.example.visa.demande.model.DemandeEditData;
+import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.model.DemandeListItem;
 import com.example.visa.demande.model.OptionItem;
+import com.example.visa.demande.model.PieceScanItem;
 import com.example.visa.demande.model.PieceJustificativeItem;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -105,6 +107,68 @@ public class JdbcDemandeRepository implements DemandeRepository {
                 )
         );
     }
+
+            @Override
+            public Optional<DemandeDetailData> findDetail(Integer demandeId) {
+            List<DemandeDetailData> result = jdbcTemplate.query(
+                """
+                select d.id,
+                       concat(dm.nom, ' ', coalesce(dm.prenoms, '')) as nom_complet,
+                       d.categorie_demande,
+                       d.statut,
+                       d.date_creation
+                from demande d
+                join demandeur dm on dm.id = d.id_demandeur
+                where d.id = ?
+                """,
+                (rs, rowNum) -> {
+                    List<PieceScanItem> pieces = jdbcTemplate.query(
+                        """
+                        select dp.piece_id,
+                           pj.libelle,
+                           dp.coche,
+                           coalesce(hr.scanne, false) as scanne,
+                           hr.date_modification,
+                           hr.motif
+                        from demande_piece dp
+                        join piece_justificative pj on pj.id = dp.piece_id
+                        left join lateral (
+                        select scanne, date_modification, motif
+                        from historique_remis hr
+                        where hr.demande_id = dp.demande_id
+                          and hr.piece_id = dp.piece_id
+                        order by hr.date_modification desc, hr.id desc
+                        limit 1
+                        ) hr on true
+                        where dp.demande_id = ?
+                          and dp.coche = true
+                        order by pj.id
+                        """,
+                        (pieceRs, pieceRowNum) -> new PieceScanItem(
+                            pieceRs.getInt("piece_id"),
+                            pieceRs.getString("libelle"),
+                            pieceRs.getBoolean("coche"),
+                            pieceRs.getBoolean("scanne"),
+                            pieceRs.getObject("date_modification", LocalDateTime.class),
+                            pieceRs.getString("motif")
+                        ),
+                        demandeId
+                    );
+
+                    return new DemandeDetailData(
+                        rs.getInt("id"),
+                        rs.getString("nom_complet").trim(),
+                        rs.getString("categorie_demande"),
+                        rs.getString("statut"),
+                        rs.getObject("date_creation", LocalDateTime.class),
+                        pieces
+                    );
+                },
+                demandeId
+            );
+
+            return result.stream().findFirst();
+            }
 
     @Override
     public Integer createDemande(DemandeForm form) {
@@ -293,6 +357,69 @@ public class JdbcDemandeRepository implements DemandeRepository {
         jdbcTemplate.update("delete from demande_piece where demande_id = ?", demandeId);
         insertDemandePieces(demandeId, form.getCategorieDemande(), form.getPieceIds());
     }
+
+        @Override
+        public void recordPieceScan(Integer demandeId, Integer pieceId, String motif, String fichierNom, String fichierType, byte[] fichierContenu) {
+                jdbcTemplate.update(
+                                """
+                    insert into historique_remis (demande_id, piece_id, scanne, motif, fichier_nom, fichier_type, fichier_contenu)
+                    values (?, ?, true, ?, ?, ?, ?)
+                                """,
+                                demandeId,
+                                pieceId,
+                    motif,
+                    fichierNom,
+                    fichierType,
+                    fichierContenu
+                );
+        }
+
+        @Override
+        public boolean areAllPiecesScanned(Integer demandeId) {
+                Integer expected = jdbcTemplate.queryForObject(
+                                """
+                                select count(*)
+                                from demande_piece
+                                where demande_id = ?
+                                    and coche = true
+                                """,
+                                Integer.class,
+                                demandeId
+                );
+
+                Integer scanned = jdbcTemplate.queryForObject(
+                                """
+                                select count(*)
+                                from demande_piece dp
+                                where dp.demande_id = ?
+                                    and dp.coche = true
+                                    and exists (
+                                            select 1
+                                            from historique_remis hr
+                                            where hr.demande_id = dp.demande_id
+                                                and hr.piece_id = dp.piece_id
+                                                and hr.scanne = true
+                                    )
+                                """,
+                                Integer.class,
+                                demandeId
+                );
+
+                return expected != null && expected.equals(scanned);
+        }
+
+        @Override
+        public void markDemandeScanComplete(Integer demandeId) {
+                jdbcTemplate.update(
+                                """
+                                update demande
+                                set statut = cast(? as statut_demande_enum)
+                                where id = ?
+                                """,
+                                "DOSSIER_SCANNE",
+                                demandeId
+                );
+        }
 
     private Integer insertDemandeur(DemandeForm form) {
         KeyHolder keyHolder = new GeneratedKeyHolder();

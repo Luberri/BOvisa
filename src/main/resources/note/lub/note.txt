@@ -47,3 +47,9 @@ x
 
 table carte resident : iddemandeur,idpassport
 table visa : iddemandeur,idpassport
+
+
+
+sprint 4 : qr code :affiche fiche demanade autre ; mandray passeport na demande, afficher recap demande 
+
+decision propose -> decision approuve (afaka mandoha vola : carte resident ou visa) -> impresion

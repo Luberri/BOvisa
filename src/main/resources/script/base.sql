@@ -1,7 +1,7 @@
 \c postgres;
-DROP DATABASE IF EXISTS gestion_visa;
-CREATE DATABASE gestion_visa;
-\c gestion_visa;
+DROP DATABASE IF EXISTS gestion_visa2;
+CREATE DATABASE gestion_visa2;
+\c gestion_visa2;
 -- =========================
 -- TYPES ENUM
 -- =========================

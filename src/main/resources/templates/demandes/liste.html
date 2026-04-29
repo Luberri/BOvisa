@@ -334,6 +334,23 @@
             font-size: 12px;
         }
 
+        .table-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-success {
+            background: var(--ok);
+            color: #fff;
+            border: 1px solid var(--ok);
+        }
+
+        .btn-success:hover {
+            filter: brightness(1.03);
+            transform: translateY(-1px);
+        }
+
         .empty {
             padding: 24px;
             text-align: center;
@@ -419,7 +436,7 @@
         <div class="page-hero">
             <div class="page-hero-eyebrow"><span></span>Suivi des dossiers</div>
             <h1>Demandes visa long sejour</h1>
-            <div class="small-muted">Type gere dans ce sprint: NOUVEAU_TITRE</div>
+            <div class="small-muted">Types geres dans ce sprint: NOUVEAU_TITRE, DUPLICATA_RESIDENT</div>
         </div>
 
         <div class="top-actions">
@@ -451,6 +468,9 @@
                         <th>ID</th>
                         <th>Demandeur</th>
                         <th>Categorie</th>
+                        <th>Type demande</th>
+                        <th>Numéro visa</th>
+                        <th>Numéro carte resident</th>
                         <th>Statut</th>
                         <th>Date creation</th>
                         <th>Action</th>
@@ -461,10 +481,18 @@
                         <td data-label="ID" th:text="${demande.id}"></td>
                         <td data-label="Demandeur" th:text="${demande.nomComplet}"></td>
                         <td data-label="Categorie" th:text="${demande.categorieDemande}"></td>
+                        <td data-label="Type demande" th:text="${demande.typeDemande == 'NOUVEAU_TITRE' ? 'Nouveau titre' : 'Duplicata resident'}"></td>
+                        <td data-label="Numéro visa" th:text="${demande.numeroVisa}"></td>
+                        <td data-label="Numéro carte resident" th:text="${demande.numeroCarteResident}"></td>
                         <td data-label="Statut"><span class="status-pill" th:text="${demande.statut}"></span></td>
                         <td data-label="Date creation" th:text="${#temporals.format(demande.dateCreation, 'dd/MM/yyyy HH:mm')}"></td>
                         <td data-label="Action">
-                            <a class="btn btn-ghost table-action" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
+                            <div class="table-actions">
+                                <a class="btn btn-ghost table-action" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
+                                <form th:if="${demande.statut != 'VISA_APPROUVE' && demande.statut != 'VISA_REFUSE'}" th:action="@{/demandes/{id}/valider(id=${demande.id})}" method="post">
+                                    <button class="btn btn-success table-action" type="submit">Valider</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     </tbody>

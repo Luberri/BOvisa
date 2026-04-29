@@ -592,6 +592,26 @@
 
         .category-block.active { display: block; }
 
+        .type-block {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            background: var(--accent-subtle);
+            border: 1px solid var(--accent-light);
+            border-radius: 10px;
+        }
+
+        .type-help {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .mode-block {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed var(--border);
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
@@ -762,7 +782,7 @@
 
     <!-- Hero -->
     <div class="page-hero">
-        <div class="page-hero-eyebrow"><span></span>Nouveau dossier — NOUVEAU_TITRE</div>
+        <div class="page-hero-eyebrow"><span></span>Nouveau dossier</div>
         <h1 th:text="${editMode} ? 'Modifier la demande' : 'Demande de visa long séjour'">Demande de visa long séjour</h1>
         <p class="page-hero-desc">Veuillez remplir les informations ci-dessous avec soin. Les champs marqués d'un astérisque (<span style="color:var(--accent-mid)">*</span>) sont obligatoires.</p>
     </div>
@@ -792,6 +812,50 @@
             <div th:each="err : ${#fields.globalErrors()}" th:text="${err}"></div>
         </div>
 
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 10h16"/><path d="M8 14h4"/></svg>
+                </div>
+                <div class="card-heading">
+                    <h2>Type de demande</h2>
+                    <div class="card-sub">Choisissez entre une nouvelle demande ou un duplicata de carte resident</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="type-block">
+                    <div class="radios">
+                        <label class="radio-item" th:each="type : ${typesDemandes}">
+                            <input type="radio" th:field="*{typeDemande}" th:value="${type}">
+                            <span class="radio-label-text" th:text="${type == 'NOUVEAU_TITRE' ? 'Nouvelle demande' : 'Duplicata'}"></span>
+                        </label>
+                    </div>
+                    <div class="type-help" th:if="${#fields.hasErrors('typeDemande')}" th:errors="*{typeDemande}"></div>
+                    <div class="type-help">La nouvelle demande reprend le parcours existant. Le duplicata demande un numero de carte resident.</div>
+
+                    <div class="mode-block" id="duplicata-mode-block" style="display:none;">
+                        <div class="section-label" style="margin-top: 0;">Données antérieures</div>
+                        <div class="radios">
+                            <label class="radio-item">
+                                <input type="radio" th:field="*{avecDonneesAnterieures}" th:value="true">
+                                <span class="radio-label-text">Avec données antérieures</span>
+                            </label>
+                            <label class="radio-item">
+                                <input type="radio" th:field="*{avecDonneesAnterieures}" th:value="false">
+                                <span class="radio-label-text">Sans données antérieures</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="resident-card-block" class="field" style="display:none; margin-top: 16px;">
+                    <label for="numeroCarteResident">Numero de carte resident <span class="req">*</span></label>
+                    <input id="numeroCarteResident" type="text" th:field="*{numeroCarteResident}" placeholder="ex. CR-2024-0001">
+                    <div class="error-msg" th:if="${#fields.hasErrors('numeroCarteResident')}" th:errors="*{numeroCarteResident}"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ── Card 1: Pièces justificatives ── -->
         <div class="card">
             <div class="card-header">
@@ -816,6 +880,11 @@
                 </div>
 
                 <div class="section-label">Pièces communes</div>
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                    <label style="display:inline-flex; align-items:center; gap:8px; font-weight:600; color:var(--text);">
+                        <input id="checkAllPieces" type="checkbox" style="width:16px;height:16px; accent-color:var(--accent-mid);"> Cocher tout
+                    </label>
+                </div>
                 <div class="checks">
                     <label class="check-item" th:each="piece : ${piecesCommunes}">
                         <input type="checkbox" th:field="*{pieceIds}" th:value="${piece.id}">
@@ -989,8 +1058,8 @@
                     </div>
 
                     <div class="field">
-                        <label for="numeroVisa">Numéro visa <span class="req">*</span></label>
-                        <input id="numeroVisa" type="text" th:field="*{numeroVisa}" required placeholder="ex. 000000000">
+                        <label for="numeroVisa">Numéro visa</label>
+                        <input id="numeroVisa" type="text" th:field="*{numeroVisa}" placeholder="Auto-genere pour nouvelle demande">
                         <div class="error-msg" th:if="${#fields.hasErrors('numeroVisa')}" th:errors="*{numeroVisa}"></div>
                     </div>
 
@@ -1033,9 +1102,26 @@
 <script>
     (function () {
         const categoryInputs = document.querySelectorAll('input[name="categorieDemande"]');
+        const typeInputs = document.querySelectorAll('input[name="typeDemande"]');
+        const priorInputs = document.querySelectorAll('input[name="avecDonneesAnterieures"]');
         const blockTravailleur = document.getElementById('block-travailleur');
         const blockInvestisseur = document.getElementById('block-investisseur');
+        const duplicataModeBlock = document.getElementById('duplicata-mode-block');
+        const residentCardBlock = document.getElementById('resident-card-block');
+        const residentCardInput = document.getElementById('numeroCarteResident');
         const saveButton = document.getElementById('saveButton');
+        const formSections = Array.from(document.querySelectorAll('.card')).slice(1);
+        const requiredFields = [
+            document.getElementById('nom'),
+            document.getElementById('situationFamilleId'),
+            document.getElementById('nationaliteId'),
+            document.getElementById('adresse'),
+            document.getElementById('numeroPasseport'),
+            document.getElementById('referenceVisa'),
+            document.getElementById('dateEntreeMada'),
+            document.getElementById('lieuEntreeMada'),
+            document.getElementById('dateExpirationVisa')
+        ];
 
         const mandatoryFields = [
             document.getElementById('nom'),
@@ -1057,11 +1143,50 @@
             }
         }
 
+        function updateTypeBlocks() {
+            const selected = document.querySelector('input[name="typeDemande"]:checked');
+            const isDuplicata = selected && selected.value === 'DUPLICATA_RESIDENT';
+            const withPriorData = document.querySelector('input[name="avecDonneesAnterieures"]:checked');
+            const hasPriorData = isDuplicata && withPriorData && withPriorData.value === 'true';
+            duplicataModeBlock.style.display = isDuplicata ? 'block' : 'none';
+
+            residentCardBlock.style.display = hasPriorData ? 'block' : 'none';
+            residentCardInput.required = hasPriorData;
+
+            requiredFields.forEach((field) => {
+                if (!field) {
+                    return;
+                }
+
+                const shouldRequire = !hasPriorData;
+                field.required = shouldRequire;
+                field.disabled = false;
+                if (field.tagName === 'INPUT' || field.tagName === 'TEXTAREA' || field.tagName === 'SELECT') {
+                    if (shouldRequire) {
+                        field.removeAttribute('aria-hidden');
+                    }
+                }
+            });
+
+            formSections.forEach((section) => {
+                section.style.display = (!isDuplicata || !hasPriorData) ? 'block' : 'none';
+            });
+        }
+
         function canSave() {
+            const selectedType = document.querySelector('input[name="typeDemande"]:checked');
+            const needsResidentCard = selectedType && selectedType.value === 'DUPLICATA_RESIDENT';
+            const withPriorData = document.querySelector('input[name="avecDonneesAnterieures"]:checked');
+            const hasPriorData = needsResidentCard && withPriorData && withPriorData.value === 'true';
+
+            if (hasPriorData) {
+                return (residentCardInput.value || '').trim().length > 0;
+            }
+
             return mandatoryFields.every((field) => {
                 if (!field) return false;
                 return (field.value || '').trim().length > 0;
-            });
+            }) && (!needsResidentCard || !hasPriorData || (residentCardInput.value || '').trim().length > 0);
         }
 
         function updateSaveState() {
@@ -1069,6 +1194,15 @@
         }
 
         categoryInputs.forEach(input => input.addEventListener('change', updateCategoryBlocks));
+        typeInputs.forEach(input => input.addEventListener('change', () => {
+            updateTypeBlocks();
+            updateSaveState();
+        }));
+
+        priorInputs.forEach(input => input.addEventListener('change', () => {
+            updateTypeBlocks();
+            updateSaveState();
+        }));
 
         mandatoryFields.forEach(field => {
             if (field) {
@@ -1077,8 +1211,46 @@
             }
         });
 
+        if (residentCardInput) {
+            residentCardInput.addEventListener('input', updateSaveState);
+            residentCardInput.addEventListener('change', updateSaveState);
+        }
+
         updateCategoryBlocks();
+        updateTypeBlocks();
         updateSaveState();
+
+        // Cocher tout pour pièces
+        const checkAllPieces = document.getElementById('checkAllPieces');
+        if (checkAllPieces) {
+            checkAllPieces.addEventListener('change', function () {
+                const pieceChecks = Array.from(document.querySelectorAll('.checks input[type="checkbox"]'));
+                pieceChecks.forEach(ch => { ch.checked = checkAllPieces.checked; });
+            });
+        }
+
+        // Pré-remplir certaines dates et champs textuels au chargement (sauf date d'expiration du visa)
+        function setIfEmpty(el, value) {
+            if (!el) return;
+            if ((el.value || '').trim().length === 0) {
+                el.value = value;
+            }
+        }
+
+        const today = new Date();
+        const isoDate = today.toISOString().slice(0,10); // YYYY-MM-DD
+
+        // Dates à pré-remplir: dateNaissance (optional), dateDelivrancePasseport, dateEntreeMada
+        setIfEmpty(document.getElementById('dateNaissance'), isoDate);
+        setIfEmpty(document.getElementById('dateDelivrancePasseport'), isoDate);
+        setIfEmpty(document.getElementById('dateEntreeMada'), isoDate);
+
+        // Champs textuels à pré-remplir si vides
+        setIfEmpty(document.getElementById('lieuNaissance'), 'Antananarivo');
+        setIfEmpty(document.getElementById('lieuEntreeMada'), 'Aéroport d\'Ivato');
+        setIfEmpty(document.getElementById('profession'), '');
+        setIfEmpty(document.getElementById('telephone'), '+261 ');
+        setIfEmpty(document.getElementById('lieuEntreeMada'), 'Aéroport d\'Ivato');
     })();
 </script>
 </body>

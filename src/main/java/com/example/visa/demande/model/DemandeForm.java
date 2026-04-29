@@ -1,15 +1,11 @@
 package com.example.visa.demande.model;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
 public class DemandeForm {
 
-    @NotBlank(message = "Le nom est obligatoire")
     private String nom;
 
     private String prenoms;
@@ -17,43 +13,38 @@ public class DemandeForm {
     private LocalDate dateNaissance;
     private String lieuNaissance;
 
-    @NotNull(message = "La situation de famille est obligatoire")
     private Integer situationFamilleId;
 
-    @NotNull(message = "La nationalite est obligatoire")
     private Integer nationaliteId;
 
     private String profession;
     private String telephone;
 
-    @Email(message = "Email invalide")
     private String email;
 
-    @NotBlank(message = "L'adresse a Madagascar est obligatoire")
     private String adresse;
 
-    @NotBlank(message = "Le numero du passeport est obligatoire")
     private String numeroPasseport;
 
     private LocalDate dateDelivrancePasseport;
     private LocalDate dateExpirationPasseport;
 
-    @NotBlank(message = "La categorie est obligatoire")
     private String categorieDemande;
 
-    @NotBlank(message = "La reference du visa est obligatoire")
+    private String typeDemande;
+
+    private Boolean avecDonneesAnterieures;
+
+    private String numeroCarteResident;
+
     private String referenceVisa;
 
-    @NotBlank(message = "Le numero du visa est obligatoire")
     private String numeroVisa;
 
-    @NotNull(message = "La date d'entree a Madagascar est obligatoire")
     private LocalDate dateEntreeMada;
 
-    @NotBlank(message = "Le lieu d'entree a Madagascar est obligatoire")
     private String lieuEntreeMada;
 
-    @NotNull(message = "La date d'expiration du visa est obligatoire")
     private LocalDate dateExpirationVisa;
 
     private Set<Integer> pieceIds = new HashSet<>();
@@ -152,6 +143,30 @@ public class DemandeForm {
 
     public void setCategorieDemande(String categorieDemande) {
         this.categorieDemande = categorieDemande;
+    }
+
+    public String getTypeDemande() {
+        return typeDemande;
+    }
+
+    public void setTypeDemande(String typeDemande) {
+        this.typeDemande = typeDemande;
+    }
+
+    public Boolean getAvecDonneesAnterieures() {
+        return avecDonneesAnterieures;
+    }
+
+    public void setAvecDonneesAnterieures(Boolean avecDonneesAnterieures) {
+        this.avecDonneesAnterieures = avecDonneesAnterieures;
+    }
+
+    public String getNumeroCarteResident() {
+        return numeroCarteResident;
+    }
+
+    public void setNumeroCarteResident(String numeroCarteResident) {
+        this.numeroCarteResident = numeroCarteResident;
     }
 
     public String getNumeroPasseport() {

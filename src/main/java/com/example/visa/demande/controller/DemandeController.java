@@ -20,6 +20,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class DemandeController {
 
     private static final String FORM_VIEW = "demandes/formulaire";
+    private static final String TYPE_NOUVEAU_TITRE = "NOUVEAU_TITRE";
+    private static final String TYPE_DUPLICATA_RESIDENT = "DUPLICATA_RESIDENT";
+    private static final String STATUT_VISA_APPROUVE = "VISA_APPROUVE";
 
     private final DemandeService demandeService;
 
@@ -37,6 +40,7 @@ public class DemandeController {
     public String nouveau(Model model) {
         DemandeForm form = new DemandeForm();
         form.setCategorieDemande("TRAVAILLEUR");
+        form.setTypeDemande(TYPE_NOUVEAU_TITRE);
         enrichFormModel(model, form, false, null);
         return FORM_VIEW;
     }
@@ -88,11 +92,18 @@ public class DemandeController {
         return "redirect:/demandes";
     }
 
+    @PostMapping("/{id}/valider")
+    public String valider(@PathVariable("id") Integer demandeId, RedirectAttributes redirectAttributes) {
+        demandeService.updateStatut(demandeId, STATUT_VISA_APPROUVE);
+        redirectAttributes.addFlashAttribute("successMessage", "Demande validee avec succes");
+        return "redirect:/demandes";
+    }
+
     private void enrichFormModel(Model model, DemandeForm form, boolean editMode, Integer demandeId) {
         model.addAttribute("form", form);
         model.addAttribute("editMode", editMode);
         model.addAttribute("demandeId", demandeId);
-        model.addAttribute("typeDemande", "NOUVEAU_TITRE");
+        model.addAttribute("typesDemandes", List.of(TYPE_NOUVEAU_TITRE, TYPE_DUPLICATA_RESIDENT));
         model.addAttribute("categories", List.of("TRAVAILLEUR", "INVESTISSEUR"));
         model.addAttribute("situationsFamille", demandeService.findSituationsFamille());
         model.addAttribute("nationalites", demandeService.findNationalites());

@@ -25,6 +25,12 @@ public class JdbcDemandeRepository implements DemandeRepository {
 
     private static final String CATEGORIE_TRAVAILLEUR = "TRAVAILLEUR";
     private static final String CATEGORIE_INVESTISSEUR = "INVESTISSEUR";
+    private static final String TYPE_NOUVEAU_TITRE = "NOUVEAU_TITRE";
+    private static final String TYPE_DUPLICATA_RESIDENT = "DUPLICATA_RESIDENT";
+    private static final String STATUT_DOSSIER_CREE = "DOSSIER_CREE";
+    private static final String STATUT_VISA_APPROUVE = "VISA_APPROUVE";
+    private static final String PREFIX_NUMERO_VISA = "VISA";
+    private static final String PREFIX_NUMERO_CARTE = "CR";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -90,16 +96,25 @@ public class JdbcDemandeRepository implements DemandeRepository {
                 select d.id,
                        concat(dm.nom, ' ', coalesce(dm.prenoms, '')) as nom_complet,
                        d.categorie_demande,
+                       d.type_demande,
+                  coalesce(vf.numero_visa, vt.numero_visa) as numero_visa,
+                       cr.numero_carte_resident,
                        d.statut,
                        d.date_creation
                 from demande d
                 join demandeur dm on dm.id = d.id_demandeur
+              join visa_transformable vt on vt.id = d.id_visa_transformable
+              left join visa vf on vf.id_demande = d.id
+                left join carte_resident cr on cr.id_demande = d.id
                 order by d.date_creation desc
                 """,
                 (rs, rowNum) -> new DemandeListItem(
                         rs.getInt("id"),
                         rs.getString("nom_complet").trim(),
                         rs.getString("categorie_demande"),
+                    rs.getString("type_demande"),
+                    rs.getString("numero_visa"),
+                    rs.getString("numero_carte_resident"),
                         rs.getString("statut"),
                         rs.getObject("date_creation", LocalDateTime.class)
                 )
@@ -107,12 +122,40 @@ public class JdbcDemandeRepository implements DemandeRepository {
     }
 
     @Override
+    public boolean existsCarteResident(String numeroCarteResident) {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(1) from carte_resident where numero_carte_resident = ?",
+                Integer.class,
+                numeroCarteResident
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
     public Integer createDemande(DemandeForm form) {
+        if (Boolean.TRUE.equals(form.getAvecDonneesAnterieures()) && TYPE_DUPLICATA_RESIDENT.equals(form.getTypeDemande())) {
+            DuplicataSource source = findDuplicataSource(form.getNumeroCarteResident())
+                    .orElseThrow(() -> new IllegalArgumentException("Carte resident introuvable"));
+            Integer demandeId = insertDemande(
+                source.demandeurId(),
+                source.visaId(),
+                form.getTypeDemande(),
+                source.categorieDemande(),
+                Boolean.TRUE
+            );
+            insertDemandePieces(demandeId, source.categorieDemande(), source.pieceIds());
+            return demandeId;
+        }
+
         Integer demandeurId = insertDemandeur(form);
         Integer passeportId = insertPasseport(demandeurId, form);
-        Integer visaId = insertVisa(demandeurId, passeportId, form);
-        Integer demandeId = insertDemande(demandeurId, visaId, form.getCategorieDemande());
+        Integer visaId = insertVisaTransformable(demandeurId, passeportId, form);
+        Integer demandeId = insertDemande(demandeurId, visaId, form.getTypeDemande(), form.getCategorieDemande(), form.getAvecDonneesAnterieures());
         insertDemandePieces(demandeId, form.getCategorieDemande(), form.getPieceIds());
+        insertCarteResidentIfNeeded(demandeId, demandeurId, form);
+        if (shouldCreateVisaFinal(form)) {
+            insertVisaFinal(demandeId, demandeurId, passeportId, form);
+        }
         return demandeId;
     }
 
@@ -123,6 +166,9 @@ public class JdbcDemandeRepository implements DemandeRepository {
                 select d.id_demandeur,
                       v.id_passeport,
                        d.id_visa_transformable,
+                         d.type_demande,
+                                                 d.avec_donnees_anterieures,
+                         cr.numero_carte_resident,
                        d.categorie_demande,
                        dm.nom,
                        dm.prenoms,
@@ -145,8 +191,9 @@ public class JdbcDemandeRepository implements DemandeRepository {
                        v.date_expiration_visa
                 from demande d
                 join demandeur dm on dm.id = d.id_demandeur
-                join visa v on v.id = d.id_visa_transformable
+                join visa_transformable v on v.id = d.id_visa_transformable
                 left join passeport p on p.id = v.id_passeport
+                left join carte_resident cr on cr.id_demande = d.id
                 where d.id = ?
                 """,
                 (rs, rowNum) -> {
@@ -165,6 +212,9 @@ public class JdbcDemandeRepository implements DemandeRepository {
                     form.setNumeroPasseport(rs.getString("numero_passeport"));
                     form.setDateDelivrancePasseport(rs.getObject("date_delivrance_passeport", java.time.LocalDate.class));
                     form.setDateExpirationPasseport(rs.getObject("date_expiration_passeport", java.time.LocalDate.class));
+                    form.setTypeDemande(rs.getString("type_demande"));
+                    form.setAvecDonneesAnterieures(rs.getObject("avec_donnees_anterieures", Boolean.class));
+                    form.setNumeroCarteResident(rs.getString("numero_carte_resident"));
                     form.setCategorieDemande(rs.getString("categorie_demande"));
                     form.setReferenceVisa(rs.getString("reference_visa"));
                     form.setNumeroVisa(rs.getString("numero_visa"));
@@ -253,7 +303,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
 
         jdbcTemplate.update(
                 """
-                update visa
+            update visa_transformable
                 set id_passeport = ?,
                     reference_visa = ?,
                     numero_visa = ?,
@@ -276,22 +326,35 @@ public class JdbcDemandeRepository implements DemandeRepository {
         );
 
         jdbcTemplate.update(
-                """
-                update demande
-                set type_demande = cast(? as type_demande_enum),
-                    categorie_demande = cast(? as categorie_demande_enum),
-                    statut = cast(? as statut_demande_enum),
-                    avec_donnees_anterieures = null
-                where id = ?
-                """,
-                "NOUVEAU_TITRE",
-                form.getCategorieDemande(),
-                "DOSSIER_CREE",
-                demandeId
+            """
+            update demande
+            set type_demande = cast(? as type_demande_enum),
+                categorie_demande = cast(? as categorie_demande_enum),
+                statut = cast(? as statut_demande_enum),
+                avec_donnees_anterieures = ?
+            where id = ?
+            """,
+            form.getTypeDemande(),
+            form.getCategorieDemande(),
+            STATUT_DOSSIER_CREE,
+            form.getAvecDonneesAnterieures(),
+            demandeId
         );
 
         jdbcTemplate.update("delete from demande_piece where demande_id = ?", demandeId);
         insertDemandePieces(demandeId, form.getCategorieDemande(), form.getPieceIds());
+        if (!Boolean.TRUE.equals(form.getAvecDonneesAnterieures())) {
+            syncCarteResident(demandeId, editData.demandeurId(), form);
+        }
+    }
+
+    @Override
+    public void updateStatut(Integer demandeId, String statut) {
+        jdbcTemplate.update(
+                "update demande set statut = cast(? as statut_demande_enum) where id = ?",
+                statut,
+                demandeId
+        );
     }
 
     private Integer insertDemandeur(DemandeForm form) {
@@ -344,12 +407,15 @@ public class JdbcDemandeRepository implements DemandeRepository {
         return extractGeneratedId(keyHolder);
     }
 
-    private Integer insertVisa(Integer demandeurId, Integer passeportId, DemandeForm form) {
+    private Integer insertVisaTransformable(Integer demandeurId, Integer passeportId, DemandeForm form) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
+        String numeroVisa = shouldAutoGenerateNumeroVisa(form)
+            ? generateUniqueNumeroVisaTransformable()
+            : form.getNumeroVisa();
         PreparedStatementCreator creator = connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     """
-                    insert into visa (
+                    insert into visa_transformable (
                         id_demandeur, id_passeport, reference_visa, numero_visa, nature_visa,
                         categorie_demande, date_entree_mada, lieu_entree_mada, date_expiration_visa
                     ) values (?, ?, ?, ?, cast(? as nature_visa_enum), cast(? as categorie_demande_enum), ?, ?, ?)
@@ -359,7 +425,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
             ps.setInt(1, demandeurId);
             ps.setInt(2, passeportId);
             ps.setString(3, form.getReferenceVisa());
-            ps.setString(4, form.getNumeroVisa());
+            ps.setString(4, numeroVisa);
             ps.setString(5, "TRANSFORMABLE");
             ps.setString(6, form.getCategorieDemande());
             ps.setDate(7, toSqlDate(form.getDateEntreeMada()));
@@ -371,7 +437,36 @@ public class JdbcDemandeRepository implements DemandeRepository {
         return extractGeneratedId(keyHolder);
     }
 
-    private Integer insertDemande(Integer demandeurId, Integer visaId, String categorieDemande) {
+    private Integer insertVisaFinal(Integer demandeId, Integer demandeurId, Integer passeportId, DemandeForm form) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        String numeroVisa = generateUniqueNumeroVisaFinal();
+        PreparedStatementCreator creator = connection -> {
+            PreparedStatement ps = connection.prepareStatement(
+                    """
+                    insert into visa (
+                        id_demande, id_demandeur, id_passeport, reference_visa, numero_visa, nature_visa,
+                        categorie_demande, date_entree_mada, lieu_entree_mada, date_expiration_visa
+                    ) values (?, ?, ?, ?, ?, cast(? as nature_visa_enum), cast(? as categorie_demande_enum), ?, ?, ?)
+                    """,
+                    new String[]{"id"}
+            );
+            ps.setInt(1, demandeId);
+            ps.setInt(2, demandeurId);
+            ps.setInt(3, passeportId);
+            ps.setString(4, form.getReferenceVisa());
+            ps.setString(5, numeroVisa);
+            ps.setString(6, "LONG_SEJOUR");
+            ps.setString(7, form.getCategorieDemande());
+            ps.setDate(8, toSqlDate(form.getDateEntreeMada()));
+            ps.setString(9, form.getLieuEntreeMada());
+            ps.setDate(10, toSqlDate(form.getDateExpirationVisa()));
+            return ps;
+        };
+        jdbcTemplate.update(creator, keyHolder);
+        return extractGeneratedId(keyHolder);
+    }
+
+    private Integer insertDemande(Integer demandeurId, Integer visaId, String typeDemande, String categorieDemande, Boolean avecDonneesAnterieures) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         PreparedStatementCreator creator = connection -> {
             PreparedStatement ps = connection.prepareStatement(
@@ -379,19 +474,133 @@ public class JdbcDemandeRepository implements DemandeRepository {
                     insert into demande (
                         id_demandeur, id_visa_transformable, type_demande, categorie_demande,
                         avec_donnees_anterieures, statut
-                    ) values (?, ?, cast(? as type_demande_enum), cast(? as categorie_demande_enum), null, cast(? as statut_demande_enum))
+                    ) values (?, ?, cast(? as type_demande_enum), cast(? as categorie_demande_enum), cast(? as boolean), cast(? as statut_demande_enum))
                     """,
                     new String[]{"id"}
             );
             ps.setInt(1, demandeurId);
             ps.setInt(2, visaId);
-            ps.setString(3, "NOUVEAU_TITRE");
+            ps.setString(3, typeDemande);
             ps.setString(4, categorieDemande);
-            ps.setString(5, "DOSSIER_CREE");
+            if (avecDonneesAnterieures == null) {
+                ps.setNull(5, java.sql.Types.BOOLEAN);
+            } else {
+                ps.setBoolean(5, avecDonneesAnterieures);
+            }
+            String statutToInsert = TYPE_DUPLICATA_RESIDENT.equals(typeDemande) ? STATUT_VISA_APPROUVE : STATUT_DOSSIER_CREE;
+            ps.setString(6, statutToInsert);
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);
         return extractGeneratedId(keyHolder);
+    }
+
+    private void insertCarteResidentIfNeeded(Integer demandeId, Integer demandeurId, DemandeForm form) {
+        String numeroCarteResident;
+        if (shouldAutoGenerateCarteResident(form)) {
+            numeroCarteResident = generateUniqueNumeroCarteResident();
+        } else if (TYPE_DUPLICATA_RESIDENT.equals(form.getTypeDemande())
+                && !Boolean.TRUE.equals(form.getAvecDonneesAnterieures())
+                && form.getNumeroCarteResident() != null
+                && !form.getNumeroCarteResident().isBlank()) {
+            numeroCarteResident = form.getNumeroCarteResident();
+        } else {
+            return;
+        }
+
+        jdbcTemplate.update(
+                """
+                insert into carte_resident (id_demandeur, id_demande, numero_carte_resident)
+                values (?, ?, ?)
+                """,
+                demandeurId,
+                demandeId,
+                numeroCarteResident
+        );
+    }
+
+    private String generateUniqueNumeroVisaTransformable() {
+        return generateUniqueNumber("visa_transformable", "numero_visa", PREFIX_NUMERO_VISA);
+    }
+
+    private String generateUniqueNumeroVisaFinal() {
+        return generateUniqueNumber("visa", "numero_visa", PREFIX_NUMERO_VISA);
+    }
+
+    private String generateUniqueNumeroCarteResident() {
+        return generateUniqueNumber("carte_resident", "numero_carte_resident", PREFIX_NUMERO_CARTE);
+    }
+
+    private String generateUniqueNumber(String tableName, String columnName, String prefix) {
+        long seed = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            String candidate = prefix + "-" + (seed + i);
+            Integer count = jdbcTemplate.queryForObject(
+                    "select count(1) from " + tableName + " where " + columnName + " = ?",
+                    Integer.class,
+                    candidate
+            );
+            if (count != null && count == 0) {
+                return candidate;
+            }
+        }
+
+        return prefix + "-" + seed + "-" + Math.abs(java.util.UUID.randomUUID().hashCode());
+    }
+
+    private boolean shouldCreateVisaFinal(DemandeForm form) {
+        return TYPE_NOUVEAU_TITRE.equals(form.getTypeDemande()) || isDuplicataWithoutPreviousData(form);
+    }
+
+    private boolean shouldAutoGenerateNumeroVisa(DemandeForm form) {
+        return TYPE_NOUVEAU_TITRE.equals(form.getTypeDemande()) || isDuplicataWithoutPreviousData(form);
+    }
+
+    private boolean shouldAutoGenerateCarteResident(DemandeForm form) {
+        return TYPE_NOUVEAU_TITRE.equals(form.getTypeDemande()) || isDuplicataWithoutPreviousData(form);
+    }
+
+    private boolean isDuplicataWithoutPreviousData(DemandeForm form) {
+        return TYPE_DUPLICATA_RESIDENT.equals(form.getTypeDemande()) && !Boolean.TRUE.equals(form.getAvecDonneesAnterieures());
+    }
+
+    private void syncCarteResident(Integer demandeId, Integer demandeurId, DemandeForm form) {
+        jdbcTemplate.update("delete from carte_resident where id_demande = ?", demandeId);
+        insertCarteResidentIfNeeded(demandeId, demandeurId, form);
+    }
+
+    private Optional<DuplicataSource> findDuplicataSource(String numeroCarteResident) {
+        List<DuplicataSource> sources = jdbcTemplate.query(
+                """
+                select d.id_demandeur,
+                       d.id_visa_transformable,
+                       d.categorie_demande,
+                       d.id as demande_id
+                from carte_resident cr
+                join demande d on d.id = cr.id_demande
+                where cr.numero_carte_resident = ?
+                """,
+                (rs, rowNum) -> new DuplicataSource(
+                        rs.getInt("id_demandeur"),
+                        rs.getInt("id_visa_transformable"),
+                        rs.getString("categorie_demande"),
+                        findPieceIdsForDemande(rs.getInt("demande_id"))
+                ),
+                numeroCarteResident
+        );
+
+        return sources.stream().findFirst();
+    }
+
+    private Set<Integer> findPieceIdsForDemande(Integer demandeId) {
+        return new HashSet<>(jdbcTemplate.query(
+                "select piece_id from demande_piece where demande_id = ? and coche = true",
+                (rs, rowNum) -> rs.getInt("piece_id"),
+                demandeId
+        ));
+    }
+
+    private record DuplicataSource(Integer demandeurId, Integer visaId, String categorieDemande, Set<Integer> pieceIds) {
     }
 
     private Integer extractGeneratedId(KeyHolder keyHolder) {

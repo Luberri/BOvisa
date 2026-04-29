@@ -94,7 +94,9 @@ CREATE TABLE passeport (
 -- VISA (1 demandeur -> n visas transformables)
 -- =========================
 
-CREATE TABLE visa (
+-- TABLE: visa_transformable (visas sources, transformables)
+
+CREATE TABLE visa_transformable (
     id SERIAL PRIMARY KEY,
     id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
     id_passeport INT REFERENCES passeport(id) ON DELETE SET NULL,
@@ -102,6 +104,26 @@ CREATE TABLE visa (
     reference_visa VARCHAR(100) NOT NULL,
     numero_visa VARCHAR(100) NOT NULL UNIQUE,
     nature_visa nature_visa_enum NOT NULL DEFAULT 'TRANSFORMABLE',
+    categorie_demande categorie_demande_enum,
+
+    date_entree_mada DATE,
+    lieu_entree_mada VARCHAR(150),
+    date_expiration_visa DATE NOT NULL,
+
+    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- TABLE: visa (visas finaux / générés)
+
+CREATE TABLE visa (
+    id SERIAL PRIMARY KEY,
+    id_demande INT NOT NULL UNIQUE,
+    id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
+    id_passeport INT REFERENCES passeport(id) ON DELETE SET NULL,
+
+    reference_visa VARCHAR(100) NOT NULL,
+    numero_visa VARCHAR(100) NOT NULL UNIQUE,
+    nature_visa nature_visa_enum NOT NULL DEFAULT 'LONG_SEJOUR',
     categorie_demande categorie_demande_enum,
 
     date_entree_mada DATE,
@@ -119,7 +141,7 @@ CREATE TABLE demande (
     id SERIAL PRIMARY KEY,
 
     id_demandeur INT NOT NULL REFERENCES demandeur(id) ON DELETE CASCADE,
-    id_visa_transformable INT NOT NULL REFERENCES visa(id) ON DELETE RESTRICT,
+    id_visa_transformable INT NOT NULL REFERENCES visa_transformable(id) ON DELETE RESTRICT,
 
     type_demande type_demande_enum NOT NULL,
     categorie_demande categorie_demande_enum NOT NULL,
@@ -142,13 +164,13 @@ CREATE TABLE demande (
 CREATE OR REPLACE FUNCTION verifier_demande_visa_transformable()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM visa v
-        WHERE v.id = NEW.id_visa_transformable
-          AND v.id_demandeur = NEW.id_demandeur
-          AND v.nature_visa = 'TRANSFORMABLE'
-    ) THEN
+        IF NOT EXISTS (
+                SELECT 1
+                FROM visa_transformable v
+                WHERE v.id = NEW.id_visa_transformable
+                    AND v.id_demandeur = NEW.id_demandeur
+                    AND v.nature_visa = 'TRANSFORMABLE'
+        ) THEN
         RAISE EXCEPTION 'Le visa de la demande doit etre TRANSFORMABLE et appartenir au meme demandeur';
     END IF;
 
@@ -160,6 +182,10 @@ CREATE TRIGGER trg_verifier_demande_visa_transformable
 BEFORE INSERT OR UPDATE ON demande
 FOR EACH ROW
 EXECUTE FUNCTION verifier_demande_visa_transformable();
+
+ALTER TABLE visa
+    ADD CONSTRAINT fk_visa_demande
+    FOREIGN KEY (id_demande) REFERENCES demande(id) ON DELETE CASCADE;
 
 -- =========================
 -- CARTE RESIDENT
@@ -209,7 +235,8 @@ CREATE TABLE demande_piece (
 );
 
 CREATE INDEX idx_passeport_demandeur ON passeport(id_demandeur);
-CREATE INDEX idx_visa_demandeur ON visa(id_demandeur);
+CREATE INDEX idx_visa_demandeur ON visa_transformable(id_demandeur);
+CREATE INDEX idx_visa_demande ON visa(id_demande);
 CREATE INDEX idx_demande_demandeur ON demande(id_demandeur);
 CREATE INDEX idx_demande_visa_transformable ON demande(id_visa_transformable);
 

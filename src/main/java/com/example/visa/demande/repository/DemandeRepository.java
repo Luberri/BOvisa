@@ -20,7 +20,11 @@ public interface DemandeRepository {
 
     List<DemandeListItem> findDemandes();
 
+    boolean existsCarteResident(String numeroCarteResident);
+
     Integer createDemande(DemandeForm form);
+
+    void updateStatut(Integer demandeId, String statut);
 
     Optional<DemandeEditData> findForEdit(Integer demandeId);
 

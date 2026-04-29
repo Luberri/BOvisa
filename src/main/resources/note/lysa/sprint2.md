@@ -1,2 +1,1 @@
-sans donnees anterieure
-Raha ohatra sans donnees interieures -> tode mamorona demande 'Visa approuve'.
+tu vois dans la creation de demnde , puis ddans la liste , ajoute un boutton valider avec changement de status ; et on va pouvoir choisir entre nouvelle demande et duplicata ; nouvelle demande : qui existe dejas dans le projet et duplicata : formulaire avec creation de demande ; avec un numero de carte resident , ikn peut creer une demande 

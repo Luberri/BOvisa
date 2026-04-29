@@ -49,7 +49,7 @@ table carte resident : iddemandeur,idpassport
 table visa : iddemandeur,idpassport
 
 
-
-sprint 4 : qr code :affiche fiche demanade autre ; mandray passeport na demande, afficher recap demande 
+correction sprint 3 : tokony ampiana champ 2  : date debut sy fin VIIISAAA ny sans donnees anterieures 
+sprint 4 : qr code :affiche fiche demande autre ; mandray passeport na demande, afficher recap demande 
 
 decision propose -> decision approuve (afaka mandoha vola : carte resident ou visa) -> impresion

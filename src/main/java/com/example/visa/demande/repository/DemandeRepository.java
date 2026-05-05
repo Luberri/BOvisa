@@ -4,6 +4,7 @@ import com.example.visa.demande.model.DemandeEditData;
 import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.model.DemandeListItem;
+import com.example.visa.demande.model.DemandeSearchResult;
 import com.example.visa.demande.model.OptionItem;
 import com.example.visa.demande.model.PieceJustificativeItem;
 import java.util.List;
@@ -20,6 +21,8 @@ public interface DemandeRepository {
     List<PieceJustificativeItem> findPiecesByCategorie(String categorieDemande);
 
     List<DemandeListItem> findDemandes();
+
+    List<DemandeSearchResult> findDemandesForPasseport(Integer demandeId, Integer passeportId);
 
     boolean existsCarteResident(String numeroCarteResident);
     Optional<DemandeDetailData> findDetail(Integer demandeId);

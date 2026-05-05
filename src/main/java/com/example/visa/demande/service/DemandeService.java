@@ -5,6 +5,7 @@ import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.PieceScanItem;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.model.DemandeListItem;
+import com.example.visa.demande.model.DemandeSearchResult;
 import com.example.visa.demande.model.OptionItem;
 import com.example.visa.demande.model.PieceJustificativeItem;
 import com.example.visa.demande.repository.DemandeRepository;
@@ -44,6 +45,10 @@ public class DemandeService {
 
     public List<DemandeListItem> findDemandes() {
         return demandeRepository.findDemandes();
+    }
+
+    public List<DemandeSearchResult> findDemandesForPasseport(Integer demandeId, Integer passeportId) {
+        return demandeRepository.findDemandesForPasseport(demandeId, passeportId);
     }
 
     public void updateStatut(Integer demandeId, String statut) {

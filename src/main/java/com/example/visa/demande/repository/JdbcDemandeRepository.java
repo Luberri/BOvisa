@@ -4,6 +4,8 @@ import com.example.visa.demande.model.DemandeEditData;
 import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.model.DemandeListItem;
+import com.example.visa.demande.model.DemandeSearchResult;
+import com.example.visa.demande.model.DemandeStatutHistoriqueItem;
 import com.example.visa.demande.model.OptionItem;
 import com.example.visa.demande.model.PieceScanItem;
 import com.example.visa.demande.model.PieceJustificativeItem;
@@ -123,18 +125,79 @@ public class JdbcDemandeRepository implements DemandeRepository {
         );
     }
 
+    @Override
+    public List<DemandeSearchResult> findDemandesForPasseport(Integer demandeId, Integer passeportId) {
+        List<Integer> demandeurIds = jdbcTemplate.query(
+                """
+                select d.id_demandeur
+                from demande d
+                join visa_transformable vt on vt.id = d.id_visa_transformable
+                where d.id = ?
+                  and vt.id_passeport = ?
+                """,
+                (rs, rowNum) -> rs.getInt("id_demandeur"),
+                demandeId,
+                passeportId
+        );
+
+        if (demandeurIds.isEmpty()) {
+            return List.of();
+        }
+
+        Integer demandeurId = demandeurIds.get(0);
+        return jdbcTemplate.query(
+                """
+                select d.id,
+                       vt.id_passeport,
+                       d.type_demande,
+                       d.statut,
+                       d.date_creation,
+                       concat(dm.nom, ' ', coalesce(dm.prenoms, '')) as nom_complet
+                from demande d
+                join demandeur dm on dm.id = d.id_demandeur
+                join visa_transformable vt on vt.id = d.id_visa_transformable
+                where d.id_demandeur = ?
+                  and vt.id_passeport = ?
+                order by d.date_creation desc
+                """,
+                (rs, rowNum) -> {
+                    Integer foundDemandeId = rs.getInt("id");
+                    String typeDemande = rs.getString("type_demande");
+                    String statut = rs.getString("statut");
+                    LocalDateTime dateCreation = rs.getObject("date_creation", LocalDateTime.class);
+                    List<DemandeStatutHistoriqueItem> historique =
+                            findHistoriqueStatuts(foundDemandeId, statut, dateCreation);
+
+                    return new DemandeSearchResult(
+                            foundDemandeId,
+                            rs.getInt("id_passeport"),
+                            titleFromType(typeDemande),
+                            typeDemande,
+                            statut,
+                            dateCreation,
+                            rs.getString("nom_complet").trim(),
+                            historique
+                    );
+                },
+                demandeurId,
+                passeportId
+        );
+    }
+
             @Override
             public Optional<DemandeDetailData> findDetail(Integer demandeId) {
             List<DemandeDetailData> result = jdbcTemplate.query(
                 """
-                select d.id,
-                       concat(dm.nom, ' ', coalesce(dm.prenoms, '')) as nom_complet,
-                       d.categorie_demande,
-                       d.statut,
-                       d.date_creation
-                from demande d
-                join demandeur dm on dm.id = d.id_demandeur
-                where d.id = ?
+                  select d.id,
+                      vt.id_passeport,
+                      concat(dm.nom, ' ', coalesce(dm.prenoms, '')) as nom_complet,
+                      d.categorie_demande,
+                      d.statut,
+                      d.date_creation
+                  from demande d
+                  join demandeur dm on dm.id = d.id_demandeur
+                  join visa_transformable vt on vt.id = d.id_visa_transformable
+                  where d.id = ?
                 """,
                 (rs, rowNum) -> {
                     List<PieceScanItem> pieces = jdbcTemplate.query(
@@ -172,6 +235,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
 
                     return new DemandeDetailData(
                         rs.getInt("id"),
+                        rs.getObject("id_passeport", Integer.class),
                         rs.getString("nom_complet").trim(),
                         rs.getString("categorie_demande"),
                         rs.getString("statut"),
@@ -404,6 +468,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
             form.getAvecDonneesAnterieures(),
             demandeId
         );
+        recordStatutHistorique(demandeId, STATUT_DOSSIER_CREE, "Mise a jour");
 
         jdbcTemplate.update("delete from demande_piece where demande_id = ?", demandeId);
         insertDemandePieces(demandeId, form.getCategorieDemande(), form.getPieceIds());
@@ -419,6 +484,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                 statut,
                 demandeId
         );
+        recordStatutHistorique(demandeId, statut, "Mise a jour");
     }
 
         @Override
@@ -482,6 +548,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
                                 "DOSSIER_SCANNE",
                                 demandeId
                 );
+            recordStatutHistorique(demandeId, "DOSSIER_SCANNE", "Pieces scannees");
         }
 
     private Integer insertDemandeur(DemandeForm form) {
@@ -595,6 +662,7 @@ public class JdbcDemandeRepository implements DemandeRepository {
 
     private Integer insertDemande(Integer demandeurId, Integer visaId, String typeDemande, String categorieDemande, Boolean avecDonneesAnterieures) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
+        String statutToInsert = TYPE_DUPLICATA_RESIDENT.equals(typeDemande) ? STATUT_VISA_APPROUVE : STATUT_DOSSIER_CREE;
         PreparedStatementCreator creator = connection -> {
             PreparedStatement ps = connection.prepareStatement(
                     """
@@ -614,12 +682,13 @@ public class JdbcDemandeRepository implements DemandeRepository {
             } else {
                 ps.setBoolean(5, avecDonneesAnterieures);
             }
-            String statutToInsert = TYPE_DUPLICATA_RESIDENT.equals(typeDemande) ? STATUT_VISA_APPROUVE : STATUT_DOSSIER_CREE;
             ps.setString(6, statutToInsert);
             return ps;
         };
         jdbcTemplate.update(creator, keyHolder);
-        return extractGeneratedId(keyHolder);
+        Integer demandeId = extractGeneratedId(keyHolder);
+        recordStatutHistorique(demandeId, statutToInsert, "Creation");
+        return demandeId;
     }
 
     private void insertCarteResidentIfNeeded(Integer demandeId, Integer demandeurId, DemandeForm form) {
@@ -727,23 +796,63 @@ public class JdbcDemandeRepository implements DemandeRepository {
         ));
     }
 
-    private record DuplicataSource(Integer demandeurId, Integer visaId, String categorieDemande, Set<Integer> pieceIds) {
-    }
+    // Définition correcte du record (doit être fermé par {})
+    private record DuplicataSource(Integer demandeurId, Integer visaId, String categorieDemande, Set<Integer> pieceIds) {}
 
-    private Integer extractGeneratedId(KeyHolder keyHolder) {
-        Number key = keyHolder.getKey();
-        if (key != null) {
-            return key.intValue();
+    private List<DemandeStatutHistoriqueItem> findHistoriqueStatuts(
+            Integer demandeId,
+            String statutActuel,
+            LocalDateTime dateCreation
+    ) {
+        List<DemandeStatutHistoriqueItem> historique = jdbcTemplate.query(
+                """
+                select id, statut, date_modification, note
+                from demande_statut_historique
+                where demande_id = ?
+                order by date_modification asc, id asc
+                """,
+                (rs, rowNum) -> new DemandeStatutHistoriqueItem(
+                        rs.getInt("id"),
+                        rs.getString("statut"),
+                        rs.getObject("date_modification", LocalDateTime.class),
+                        rs.getString("note")
+                ),
+                demandeId
+        );
+
+        if (historique.isEmpty()) {
+            return List.of(new DemandeStatutHistoriqueItem(null, statutActuel, dateCreation, "Statut initial"));
         }
 
-        Map<String, Object> keys = keyHolder.getKeys();
-        if (keys != null && keys.get("id") instanceof Number id) {
-            return id.intValue();
-        }
-
-        throw new IllegalStateException("Impossible de recuperer l'id genere");
+        return historique;
     }
 
+    private void recordStatutHistorique(Integer demandeId, String statut, String note) {
+        jdbcTemplate.update(
+                """
+                insert into demande_statut_historique (demande_id, statut, note)
+                values (?, cast(? as statut_demande_enum), ?)
+                """,
+                demandeId,
+                statut,
+                note
+        );
+    }
+
+    private String titleFromType(String typeDemande) {
+        if (TYPE_NOUVEAU_TITRE.equals(typeDemande)) {
+            return "Nouveau titre";
+        }
+        if (TYPE_DUPLICATA_RESIDENT.equals(typeDemande)) {
+            return "Duplicata resident";
+        }
+        if ("TRANSFERT_VISA".equals(typeDemande)) {
+            return "Transfert visa";
+        }
+        return "Demande";
+    }
+
+    // Méthode manquante : Insertion des pièces justificatives
     private void insertDemandePieces(Integer demandeId, String categorieDemande, Set<Integer> selectedPieceIds) {
         List<Integer> pieceIds = new ArrayList<>(jdbcTemplate.query(
                 """
@@ -766,11 +875,23 @@ public class JdbcDemandeRepository implements DemandeRepository {
         }
     }
 
-    private Date toSqlDate(java.time.LocalDate value) {
-        return value == null ? null : Date.valueOf(value);
+    // Méthode manquante : Conversion de LocalDate vers java.sql.Date
+    private java.sql.Date toSqlDate(java.time.LocalDate value) {
+        return value == null ? null : java.sql.Date.valueOf(value);
     }
 
-    public List<String> categories() {
-        return List.of(CATEGORIE_TRAVAILLEUR, CATEGORIE_INVESTISSEUR);
+    // Méthode manquante : Extraction de l'ID généré par la base de données
+    private Integer extractGeneratedId(KeyHolder keyHolder) {
+        Number key = keyHolder.getKey();
+        if (key != null) {
+            return key.intValue();
+        }
+
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys != null && keys.get("id") instanceof Number id) {
+            return id.intValue();
+        }
+
+        throw new IllegalStateException("Impossible de recuperer l'id genere");
     }
 }

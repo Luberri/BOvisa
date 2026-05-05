@@ -488,7 +488,7 @@
                         <td data-label="Date creation" th:text="${#temporals.format(demande.dateCreation, 'dd/MM/yyyy HH:mm')}"></td>
                         <td data-label="Action">
                             <div class="table-actions">
-                                <a class="btn btn-ghost table-action" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a>
+                                <!-- <a class="btn btn-ghost table-action" th:href="@{/demandes/{id}/modifier(id=${demande.id})}">Modifier</a> -->
                                 <form th:if="${demande.statut != 'VISA_APPROUVE' && demande.statut != 'VISA_REFUSE'}" th:action="@{/demandes/{id}/valider(id=${demande.id})}" method="post">
                                     <button class="btn btn-success table-action" type="submit">Valider</button>
                                 </form>

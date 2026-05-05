@@ -5,7 +5,10 @@ import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.service.DemandeService;
 import jakarta.validation.Valid;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -28,9 +31,14 @@ public class DemandeController {
     private static final String STATUT_VISA_APPROUVE = "VISA_APPROUVE";
 
     private final DemandeService demandeService;
+    private final String frontendBaseUrl;
 
-    public DemandeController(DemandeService demandeService) {
+    public DemandeController(
+            DemandeService demandeService,
+            @Value("${bo.frontend.base-url:http://localhost:5173}") String frontendBaseUrl
+    ) {
         this.demandeService = demandeService;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     @GetMapping
@@ -48,7 +56,23 @@ public class DemandeController {
         }
 
         model.addAttribute("detail", detailData);
+        String targetUrl = buildFrontendUrl(detailData);
+        model.addAttribute("frontendUrl", targetUrl);
+        model.addAttribute("qrImageUrl", buildQrUrl(targetUrl));
         return "demandes/detail";
+    }
+
+    private String buildFrontendUrl(DemandeDetailData detailData) {
+        String base = frontendBaseUrl.endsWith("/")
+                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
+                : frontendBaseUrl;
+        String passeportId = detailData.passeportId() == null ? "" : detailData.passeportId().toString();
+        return base + "/?demandeId=" + detailData.id() + "&passeportId=" + passeportId;
+    }
+
+    private String buildQrUrl(String targetUrl) {
+        String encoded = URLEncoder.encode(targetUrl, StandardCharsets.UTF_8);
+        return "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encoded;
     }
 
     @GetMapping("/nouveau")

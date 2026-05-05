@@ -5,6 +5,7 @@ import java.util.List;
 
 public record DemandeDetailData(
         Integer id,
+        Integer passeportId,
         String nomComplet,
         String categorieDemande,
         String statut,

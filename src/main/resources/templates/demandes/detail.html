@@ -348,6 +348,35 @@
             font-size: 12px;
         }
 
+        .qr-wrap {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .qr-image {
+            width: 160px;
+            height: 160px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--white);
+            padding: 8px;
+        }
+
+        .qr-meta {
+            display: grid;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .qr-link {
+            color: var(--accent-mid);
+            word-break: break-all;
+            font-size: 12px;
+        }
+
         .empty {
             padding: 24px;
             text-align: center;
@@ -394,6 +423,8 @@
             .gov-banner, .site-header { padding-left: 14px; padding-right: 14px; }
             .page { padding: 20px 14px 40px; }
             .grid, .meta { grid-template-columns: 1fr; }
+            .qr-wrap { grid-template-columns: 1fr; text-align: center; }
+            .qr-image { margin: 0 auto; }
         }
     </style>
 </head>
@@ -465,6 +496,24 @@
                     <div class="meta-item">
                         <span class="meta-label">Date création</span>
                         <div class="meta-value" th:text="${#temporals.format(detail.dateCreation, 'dd/MM/yyyy HH:mm')}">01/01/2026 10:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">QR Code</div>
+                    <div class="card-sub">Acces rapide a la liste des demandes</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="qr-wrap">
+                    <img class="qr-image" th:src="${qrImageUrl}" alt="QR code">
+                    <div class="qr-meta">
+                        <div>Scannez ce code pour ouvrir la page de suivi sur telephone.</div>
+                        <div class="qr-link" th:text="${frontendUrl}">URL</div>
                     </div>
                 </div>
             </div>

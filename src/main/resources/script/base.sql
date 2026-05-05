@@ -1,7 +1,7 @@
 \c postgres;
-DROP DATABASE IF EXISTS gestion_visa3;
-CREATE DATABASE gestion_visa3;
-\c gestion_visa3;
+DROP DATABASE IF EXISTS gestion_visa4;
+CREATE DATABASE gestion_visa4;
+\c gestion_visa4;
 -- =========================
 -- TYPES ENUM
 -- =========================
@@ -160,6 +160,21 @@ CREATE TABLE demande (
         (type_demande IN ('TRANSFERT_VISA', 'DUPLICATA_RESIDENT') AND avec_donnees_anterieures IS NOT NULL)
     )
 );
+
+-- =========================
+-- HISTORIQUE DES STATUTS
+-- =========================
+
+CREATE TABLE demande_statut_historique (
+    id SERIAL PRIMARY KEY,
+    demande_id INT NOT NULL REFERENCES demande(id) ON DELETE CASCADE,
+    statut statut_demande_enum NOT NULL,
+    note TEXT,
+    date_modification TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_demande_statut_hist_demande_date
+    ON demande_statut_historique(demande_id, date_modification DESC);
 
 CREATE OR REPLACE FUNCTION verifier_demande_visa_transformable()
 RETURNS TRIGGER AS $$

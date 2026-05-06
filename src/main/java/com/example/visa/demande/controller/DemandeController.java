@@ -5,10 +5,11 @@ import com.example.visa.demande.model.DemandeDetailData;
 import com.example.visa.demande.model.DemandeForm;
 import com.example.visa.demande.service.DemandeService;
 import jakarta.validation.Valid;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -31,14 +32,9 @@ public class DemandeController {
     private static final String STATUT_VISA_APPROUVE = "VISA_APPROUVE";
 
     private final DemandeService demandeService;
-    private final String frontendBaseUrl;
 
-    public DemandeController(
-            DemandeService demandeService,
-            @Value("${bo.frontend.base-url:http://localhost:5173}") String frontendBaseUrl
-    ) {
+    public DemandeController(DemandeService demandeService) {
         this.demandeService = demandeService;
-        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     @GetMapping
@@ -63,9 +59,14 @@ public class DemandeController {
     }
 
     private String buildFrontendUrl(DemandeDetailData detailData) {
-        String base = frontendBaseUrl.endsWith("/")
-                ? frontendBaseUrl.substring(0, frontendBaseUrl.length() - 1)
-                : frontendBaseUrl;
+        String ip;
+        try {
+            ip = InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            ip = "127.0.0.1";
+        }
+        
+        String base = "http://" + ip + ":5173";
         String passeportId = detailData.passeportId() == null ? "" : detailData.passeportId().toString();
         return base + "/?demandeId=" + detailData.id() + "&passeportId=" + passeportId;
     }

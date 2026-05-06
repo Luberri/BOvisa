@@ -8,6 +8,7 @@ App Vue.js pour la recherche des demandes par ID demande + ID passeport.
 cd bo-frontend
 npm install
 npm run dev
+npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
 ## Endpoint attendu
